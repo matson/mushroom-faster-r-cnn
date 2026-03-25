@@ -23,12 +23,10 @@ from matplotlib.patches import Rectangle
 
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torchvision import transforms as T
 import torchvision.transforms.functional as F
 import random
 from pycocotools.coco import COCO
-from pycocotools import mask as maskUtils
 import albumentations as A
 
 import os
@@ -75,14 +73,15 @@ augmentations = A.Compose([
 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
+
 class MushroomCOCODataset(Dataset):
     def __init__(self, images_dir, annotations_file, augmentations=None, resize=(256, 256)):
-        self.images_dir = images_dir 
-        self.coco = COCO(annotations_file) 
+        self.images_dir = images_dir
+        self.coco = COCO(annotations_file)
         self.augmentations = augmentations
-        self.resize = resize  # (width, height)
+        self.resize = resize
 
-        # Filter images with at least one annotation to avoid recursion issues
+        # Filter images that have at least one annotation
         self.img_ids = [
             img_id for img_id in self.coco.imgs.keys()
             if len(self.coco.getAnnIds(imgIds=img_id)) > 0
@@ -92,98 +91,78 @@ class MushroomCOCODataset(Dataset):
         return len(self.img_ids)
 
     def __getitem__(self, idx):
-        # Safe loop instead of recursion
-        for _ in range(len(self.img_ids)):
-            img_id = self.img_ids[idx]
-            img_info = self.coco.loadImgs(img_id)[0]
-            img_path = os.path.join(self.images_dir, img_info['file_name'])
-            image = Image.open(img_path).convert("RGB")
-            w_original, h_original = image.size
+        img_id = self.img_ids[idx]
+        img_info = self.coco.loadImgs(img_id)[0]
+        img_path = os.path.join(self.images_dir, img_info['file_name'])
+        image = Image.open(img_path).convert("RGB")
+        w_original, h_original = image.size
 
-            ann_ids = self.coco.getAnnIds(imgIds=img_id)
-            anns = self.coco.loadAnns(ann_ids)
+        ann_ids = self.coco.getAnnIds(imgIds=img_id)
+        anns = self.coco.loadAnns(ann_ids)
 
-            boxes = []
-            labels = []
-            masks = []
+        boxes = []
+        labels = []
 
-            for ann in anns:
-                x, y, width, height = ann['bbox']
-                if width <= 1 or height <= 1:
-                    continue
-                boxes.append([x, y, x + width, y + height])
-                labels.append(1)  # mushroom class
-                segm = ann['segmentation']
-                rle = maskUtils.frPyObjects(segm, h_original, w_original)
-                mask = maskUtils.decode(rle)
-                if len(mask.shape) == 3:
-                    mask = np.any(mask, axis=2)
-                masks.append(mask)
-
-            if len(boxes) == 0:
-                # pick a random index if current image invalid
-                idx = random.randint(0, len(self.img_ids) - 1)
+        # Keep only mushrooms
+        for ann in anns:
+            if ann['category_id'] != 0:
                 continue
-            else:
-                break
+            x, y, width, height = ann['bbox']
+            if width <= 1 or height <= 1:
+                continue
+            boxes.append([x, y, x + width, y + height])
+            labels.append(1)  # mushroom class
 
+        # Skip images with no valid boxes
+        if len(boxes) == 0:
+            raise ValueError(f"Image {img_id} has no valid mushrooms.")
+
+        # Convert to tensors
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
-        masks = torch.as_tensor(np.array(masks, dtype=np.uint8), dtype=torch.uint8)
 
-        # ---- RESIZE IMAGE AND ANNOTATIONS ----
+        # Resize
         w_new, h_new = self.resize
         scale_x = w_new / w_original
         scale_y = h_new / h_original
-
         image = image.resize((w_new, h_new), resample=Image.BILINEAR)
         boxes[:, [0, 2]] *= scale_x
         boxes[:, [1, 3]] *= scale_y
 
-        resized_masks = []
-        for mask in masks:
-            mask_pil = Image.fromarray(mask.numpy())
-            mask_resized = mask_pil.resize((w_new, h_new), resample=Image.NEAREST)
-            resized_masks.append(torch.as_tensor(np.array(mask_resized), dtype=torch.uint8))
-        masks = torch.stack(resized_masks)
-
-        # ---- AUGMENTATIONS ----
+        # Augmentations
         if self.augmentations:
             transformed = self.augmentations(
                 image=np.array(image),
-                masks=[m.numpy() for m in masks],
                 bboxes=boxes.numpy().tolist(),
                 labels=labels.numpy().tolist()
             )
             image = transformed['image']
-            masks = torch.as_tensor(np.array(transformed['masks']), dtype=torch.uint8)
             boxes = torch.as_tensor(transformed['bboxes'], dtype=torch.float32)
-            # convert all labels to integers
             labels = torch.as_tensor([int(l) for l in transformed['labels']], dtype=torch.int64)
 
-        # ---- FINAL BOX VALIDATION ----
+        # Final validation
         widths = boxes[:, 2] - boxes[:, 0]
         heights = boxes[:, 3] - boxes[:, 1]
         valid = (widths > 1) & (heights > 1)
-
         boxes = boxes[valid]
         labels = labels[valid]
-        masks = masks[valid]
 
         # Convert image to tensor
-        if isinstance(image, np.ndarray):
-            image = torch.as_tensor(image, dtype=torch.float32).permute(2,0,1) / 255.0
-        else:
-            image = F.to_tensor(image)
+        image = torch.as_tensor(np.array(image), dtype=torch.float32).permute(2,0,1) / 255.0
 
         target = {
             "boxes": boxes,
             "labels": labels,
-            "masks": masks,
             "image_id": torch.tensor([img_id])
         }
 
         return image, target
+
+
+
+
+
+from torch.utils.data import DataLoader
 
 # -------- DATALOADING --------
 num_epochs = 5
@@ -202,6 +181,47 @@ train_dataset = MushroomCOCODataset(
     augmentations=augmentations,
     resize=(256,256)
 )
+
+for i in range(3):  # first 3 images
+    img, target = train_dataset[i]
+    print(f"Image {i}:")
+    print(f"Boxes: {target['boxes'].numpy()}")
+    print(f"Labels: {target['labels'].numpy()}")
+    print("----")
+
+from torch.utils.data import DataLoader
+
+# Use a small DataLoader to avoid memory issues
+temp_loader = DataLoader(
+    train_dataset, 
+    batch_size=1, 
+    shuffle=False, 
+    collate_fn=lambda x: x  # simple collate
+)
+
+print("Printing first 10 samples with COCO category_id -> model label mapping:\n")
+for i, data in enumerate(temp_loader):
+    img, target = data[0]  # unpack the batch
+    boxes = target['boxes']
+    labels = target['labels']
+    coco_ids = []
+
+    # Get COCO category_ids from the dataset directly
+    img_id = target['image_id'].item()
+    ann_ids = train_dataset.coco.getAnnIds(imgIds=img_id)
+    anns = train_dataset.coco.loadAnns(ann_ids)
+    for ann in anns:
+        coco_ids.append(ann['category_id'])
+
+    print(f"Sample {i+1}:")
+    print(f"Image ID: {img_id}")
+    print(f"COCO category_ids: {coco_ids}")
+    print(f"Model labels: {labels.tolist()}")
+    print(f"Boxes: {boxes.tolist()}\n")
+
+    if i >= 9:  # only first 10
+        break
+
 
 train_loader = DataLoader(
     train_dataset,
@@ -251,99 +271,109 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1
 
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
-# num_epochs = 5
-best_val_loss = float('inf')
-train_losses, val_losses = [], []
-torch.cuda.reset_peak_memory_stats()
+def main():
+    # num_epochs = 10
+    best_val_loss = float('inf')
+    train_losses, val_losses = [], []
+    torch.cuda.reset_peak_memory_stats()
 
-for epoch in range(6,11):
+    for epoch in range(1,11):
 
-    model.train()
-    epoch_loss = 0
-    optimizer.zero_grad()
-    loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{10}]")
-    
-    for batch_idx, (images, targets) in enumerate(loop):
-
-        images = [img.to(device) for img in images]
-        targets = [{k:v.to(device) for k,v in t.items() if k != "masks"} for t in targets]
-
-         # -------- GPU MEMORY LOGGING --------
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()  # sync to get accurate memory usage
-            allocated = torch.cuda.memory_allocated() / 1024**2
-            reserved = torch.cuda.memory_reserved() / 1024**2
-            peak = torch.cuda.max_memory_allocated() / 1024**2
-            print(f"[Batch {batch_idx}] Allocated: {allocated:.1f} MB | Reserved: {reserved:.1f} MB | Peak: {peak:.1f} MB")
-            print(f"[Batch {batch_idx}] Objects in batch: {[len(t['boxes']) for t in targets]}")
-
-        loss_dict = model(images, targets)
-        batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
-        batch_loss.backward()
-
-        optimizer.step()
+        model.train()
+        epoch_loss = 0
         optimizer.zero_grad()
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{10}]")
+        
+        for batch_idx, (images, targets) in enumerate(loop):
 
-        epoch_loss += batch_loss.item()  # accumulate epoch loss
-        running_avg_loss = epoch_loss / (batch_idx + 1)     # average so far
-
-        loop.set_postfix(batch_loss=f"{batch_loss.item():.4f}", avg_loss=f"{running_avg_loss:.4f}")
-
-
-        del images, targets, loss_dict, batch_loss
-        torch.cuda.empty_cache()
-
-    avg_train_loss = epoch_loss / len(train_loader)
-    train_losses.append(avg_train_loss)
-
-
-    # -------- VALIDATION --------
-    model.eval()
-    val_loss = 0
-    with torch.no_grad():
-        for images, targets in val_loader:
             images = [img.to(device) for img in images]
-            # Exclude masks for Faster R-CNN
-            targets = [{k: v.to(device) for k, v in t.items() if k != "masks"} for t in targets]
+            targets = [{k:v.to(device) for k,v in t.items()} for t in targets]
 
-            # Faster R-CNN returns dict of losses only in training mode
-            # For evaluation, we can do a forward pass manually to get losses
-            model.train()  # temporarily switch to training mode
+            # -------- GPU MEMORY LOGGING --------
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()  # sync to get accurate memory usage
+                allocated = torch.cuda.memory_allocated() / 1024**2
+                reserved = torch.cuda.memory_reserved() / 1024**2
+                peak = torch.cuda.max_memory_allocated() / 1024**2
+                print(f"[Batch {batch_idx}] Allocated: {allocated:.1f} MB | Reserved: {reserved:.1f} MB | Peak: {peak:.1f} MB")
+                print(f"[Batch {batch_idx}] Objects in batch: {[len(t['boxes']) for t in targets]}")
+
             loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            val_loss += losses.item()
-            model.eval()  # switch back to eval mode
+            batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
+            batch_loss.backward()
 
-    avg_val_loss = val_loss / len(val_loader)
-    val_losses.append(avg_val_loss)
+            optimizer.step()
+            optimizer.zero_grad()
 
-    
-    print(f"Epoch {epoch+1} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
+            epoch_loss += batch_loss.item()  # accumulate epoch loss
+            running_avg_loss = epoch_loss / (batch_idx + 1)     # average so far
 
-    # Save best model
-    if avg_val_loss < best_val_loss:
-        best_val_loss = avg_val_loss
-        torch.save(model.state_dict(), "best_maskrcnn_mushroom.pth")
+            loop.set_postfix(batch_loss=f"{batch_loss.item():.4f}", avg_loss=f"{running_avg_loss:.4f}")
 
-    # Step learning rate scheduler
-    lr_scheduler.step()
 
-     # -------- EVALUATE mAP --------
-    print(f"Evaluating mAP on validation set for epoch {epoch}...")
-    evaluate_mAP(model, val_dataset, device, score_threshold=0.5)
+            del images, targets, loss_dict, batch_loss
+            torch.cuda.empty_cache()
 
-# -------- PLOTTING --------
+        avg_train_loss = epoch_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
 
-plt.figure(figsize=(8,6))
-plt.plot(range(6, 11), train_losses, label='Train Loss')
-plt.plot(range(6, 11), val_losses, label='Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Training & Validation Loss')
-plt.legend()
-plt.grid(True)
-plt.savefig("loss_curve.png")
-plt.close()
+
+        # -------- VALIDATION --------
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for images, targets in val_loader:
+                images = [img.to(device) for img in images]
+                # Exclude masks for Faster R-CNN
+                targets = [{k: v.to(device) for k, v in t.items() if k != "masks"} for t in targets]
+
+                # Faster R-CNN returns dict of losses only in training mode
+                # For evaluation, we can do a forward pass manually to get losses
+                model.train()  # temporarily switch to training mode
+                loss_dict = model(images, targets)
+                losses = sum(loss for loss in loss_dict.values())
+                val_loss += losses.item()
+                model.eval()  # switch back to eval mode
+
+        avg_val_loss = val_loss / len(val_loader)
+        val_losses.append(avg_val_loss)
+
+        
+        print(f"Epoch {epoch+1} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
+
+        # Step learning rate scheduler
+        lr_scheduler.step()
+
+        # -------- SAVE CHECKPOINT --------
+        save_checkpoint(
+            epoch=epoch,
+            model=model,
+            optimizer=optimizer,
+            scheduler=lr_scheduler,
+            best_val_loss=best_val_loss,
+            filename=f"checkpoint_epoch_{epoch}.pth"
+        )
+
+        # Save best model separately
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            torch.save(model.state_dict(), "best_fasterrcnn_mushroom.pth")
+
+    # -------- PLOTTING --------
+
+    plt.figure(figsize=(8,6))
+    plt.plot(range(6, 11), train_losses, label='Train Loss')
+    plt.plot(range(6, 11), val_losses, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training & Validation Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("loss_curve.png")
+    plt.close()
+if __name__ == "__main__":
+    main()
+
   
 # -------- FINAL IMAGE VERIFICATION --------
 def verify(): 
@@ -373,3 +403,10 @@ verify()
 
 # 0.005
 # batch 1
+
+'''
+data 
+
+
+
+'''
