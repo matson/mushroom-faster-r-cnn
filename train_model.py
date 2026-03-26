@@ -378,27 +378,28 @@ def verify():
     plt.close()
 verify()
 
-if __name__ == "__main__":
-    print("Running sanity check for mAP calculation...")
-
-    # pick one image from validation
-    img, target = val_dataset[0]
-
-    # create a fake prediction that exactly matches ground truth
-    results = []
-    for box, label in zip(target['boxes'], target['labels']):
-        x1, y1, x2, y2 = box.tolist()
-        results.append({
-            "image_id": int(target['image_id'].item()),
-            "category_id": int(label.item()),  # should match ground truth
-            "bbox": [x1, y1, x2-x1, y2-y1],
-            "score": 1.0  # perfect score
-        })
-
-    cocoGt = val_dataset.coco
-    cocoDt = cocoGt.loadRes(results)
-    from pycocotools.cocoeval import COCOeval
-    cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
+creating index...
+index created!
+Running sanity check for mAP calculation...
+Loading and preparing results...
+DONE (t=0.00s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=0.51s).
+Accumulating evaluation results...
+DONE (t=0.03s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+Traceback (most recent call last):
