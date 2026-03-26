@@ -323,55 +323,20 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
-
-
-
-
-import copy
-import numpy as np
-import torch
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-
-
-if __name__ == "__main__":
-    base_dataset = val_dataset  # your validation dataset
-    cocoGt = copy.deepcopy(base_dataset.coco)
-
-    # --- Fix category IDs ---
-    for ann in cocoGt.dataset['annotations']:
-        if ann['category_id'] in [1, 2]:
-            ann['category_id'] = 1
-    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
-    cocoGt.createIndex()
-
-    # --- Prepare GT boxes as "predictions" ---
-    predictions = []
-    for img_idx in range(len(base_dataset)):
-        image, target = base_dataset[img_idx]
-
-        # Boxes are already resized in dataset __getitem__
-        boxes = target['boxes'].cpu().numpy()  # [N,4]
-        labels = target['labels'].cpu().numpy()
-        scores = np.ones(len(boxes))  # dummy score
-
-        # Convert to COCO format [x,y,w,h]
-        coco_boxes = []
-        for b in boxes:
-            x1, y1, x2, y2 = b
-            coco_boxes.append([float(x1), float(y1), float(x2 - x1), float(y2 - y1)])
-
-        for b, s, l in zip(coco_boxes, scores, labels):
-            predictions.append({
-                "image_id": int(target['image_id']),
-                "category_id": int(l),
-                "bbox": b,
-                "score": float(s)
-            })
-
-    # --- Load results and evaluate ---
-    coco_dt = cocoGt.loadRes(predictions)
-    coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
+DONE (t=0.35s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.001
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+entering training
 
     coco_eval.evaluate()
     coco_eval.accumulate()
