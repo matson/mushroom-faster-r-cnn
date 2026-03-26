@@ -440,6 +440,14 @@ class MushroomCOCODataset(Dataset):
 
         raise RuntimeError("Stopping here to inspect annotations")
 
+        61, 909, 460, 909, 459, 910, 458, 910, 457, 911, 457, 911, 454, 911, 453, 911, 452, 912, 451, 912, 447, 913, 447, 913, 445, 913, 444, 915, 444, 915, 431, 913, 431, 913, 430, 913, 429, 912, 429, 912, 427, 911, 426, 911, 423, 911, 422, 911, 421, 910, 421, 910, 419, 909, 419, 909, 418, 908, 417, 908, 416, 907, 415, 907, 413]], 'iscrowd': 0}
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 192, in <module>
+    img, target = train_dataset[i]
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 108, in __getitem__
+    raise RuntimeError("Stopping here to inspect annotations")
+RuntimeError: Stopping here to inspect annotations
+
 
 
 '''
