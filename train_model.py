@@ -377,4 +377,47 @@ def verify():
     plt.savefig("prediction_example.png")
     plt.close()
 
+[Batch 3591] Objects in batch: [175]
+Epoch [1/10]: 100%|████████████████████████████████████████████████████████▉| 3592/3596 [1:15:46<00:05,  1.27s/it, avg_loss=0.4915, batch_loss=0.3489][Batch 3592] Allocated: 481.2 MB | Reserved: 728.0 MB | Peak: 2860.9 MB
+[Batch 3592] Objects in batch: [136]
+Epoch [1/10]: 100%|████████████████████████████████████████████████████████▉| 3593/3596 [1:15:47<00:03,  1.26s/it, avg_loss=0.4914, batch_loss=0.3292][Batch 3593] Allocated: 481.2 MB | Reserved: 728.0 MB | Peak: 2860.9 MB
+[Batch 3593] Objects in batch: [121]
+Epoch [1/10]: 100%|████████████████████████████████████████████████████████▉| 3594/3596 [1:15:49<00:02,  1.25s/it, avg_loss=0.4914, batch_loss=0.3272][Batch 3594] Allocated: 481.2 MB | Reserved: 728.0 MB | Peak: 2860.9 MB
+[Batch 3594] Objects in batch: [106]
+Epoch [1/10]: 100%|████████████████████████████████████████████████████████▉| 3595/3596 [1:15:50<00:01,  1.26s/it, avg_loss=0.4914, batch_loss=0.5000][Batch 3595] Allocated: 481.2 MB | Reserved: 728.0 MB | Peak: 2860.9 MB
+[Batch 3595] Objects in batch: [168]
+Epoch [1/10]: 100%|█████████████████████████████████████████████████████████| 3596/3596 [1:15:52<00:00,  1.27s/it, avg_loss=0.4914, batch_loss=0.4573]
+
+Evaluating maP on validation set for epoch 1...
+Running inference on validation set...
+Loading and preparing results...
+DONE (t=0.18s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=2.56s).
+Accumulating evaluation results...
+DONE (t=0.30s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+AP50 (IoU=0.5): 0.0000
+Epoch 2 - Train Loss: 0.4914, Validation Loss: 0.3846
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 339, in <module>
+    main()
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 312, in main
+    save_checkpoint(
+NameError: name 'save_checkpoint' is not defined
+
 verify()
