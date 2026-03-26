@@ -217,6 +217,25 @@ if __name__ == "__main__":
     cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
     cocoGt.createIndex()
 
+    print("=== Debug Info BEFORE loadRes ===")
+    print("GT first 5 annotations:", cocoGt.dataset['annotations'][:5])
+    print("Pred first 5 results:", results[:5])
+    
+    gt_image_ids = [ann['image_id'] for ann in cocoGt.dataset['annotations']]
+    pred_image_ids = [res['image_id'] for res in results]
+    print("GT image_ids:", gt_image_ids[:5])
+    print("Pred image_ids:", pred_image_ids[:5])
+    
+    gt_category_ids = [ann['category_id'] for ann in cocoGt.dataset['annotations']]
+    pred_category_ids = [res['category_id'] for res in results]
+    print("GT category_ids:", gt_category_ids[:5])
+    print("Pred category_ids:", pred_category_ids[:5])
+    
+    gt_bboxes = [ann['bbox'] for ann in cocoGt.dataset['annotations']]
+    pred_bboxes = [res['bbox'] for res in results]
+    print("GT bboxes:", gt_bboxes[:5])
+    print("Pred bboxes:", pred_bboxes[:5])
+
     # Load the results
     cocoDt = cocoGt.loadRes(results)
 
