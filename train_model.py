@@ -170,7 +170,6 @@ class MushroomCOCODataset(Dataset):
 
 
 # -------- DATALOADING --------
-num_epochs = 5
 best_val_loss = float('inf')
 checkpoint_interval = 100
 batch_size = 1     # smaller to avoid memory issues on 4GB
@@ -225,8 +224,6 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-# Load the best model weights
-model.load_state_dict(torch.load("best_maskrcnn_mushroom.pth", map_location=device))
 model.to(device)
 
 params = [p for p in model.parameters() if p.requires_grad]
@@ -236,6 +233,7 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
 def main():
+    print("entering training")
     # num_epochs = 10
     best_val_loss = float('inf')
     train_losses, val_losses = [], []
@@ -266,7 +264,7 @@ def main():
             batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
             batch_loss.backward()
 
-            optimizer.step()
+            optimizer.step() # update model weights 
             optimizer.zero_grad()
 
             epoch_loss += batch_loss.item()  # accumulate epoch loss
@@ -302,6 +300,8 @@ def main():
         avg_val_loss = val_loss / len(val_loader)
         val_losses.append(avg_val_loss)
 
+        print(f"\nEvaluating maP on validation set for epoch {epoch}...")
+        evaluate_mAP(model, val_dataset, device, score_threshold=0.1)
         
         print(f"Epoch {epoch+1} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
@@ -326,8 +326,8 @@ def main():
     # -------- PLOTTING --------
 
     plt.figure(figsize=(8,6))
-    plt.plot(range(6, 11), train_losses, label='Train Loss')
-    plt.plot(range(6, 11), val_losses, label='Validation Loss')
+    plt.plot(range(1, 11), train_losses, label='Train Loss')
+    plt.plot(range(1, 11), val_losses, label='Validation Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title('Training & Validation Loss')
