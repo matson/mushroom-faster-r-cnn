@@ -220,6 +220,91 @@ DONE (t=0.03s).
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
 Traceback (most recent call last):
+
+
   File "/home/matson/mushroom-mask-rcnn/train_model.py", line 256, in <module>
     raise RuntimeError("sanity check done")
 RuntimeError: sanity check done
+Running sanity check for mAP calculation...
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 236, in <module>
+    cocoGt = copy.deepcopy(base_dataset.coco)
+NameError: name 'base_dataset' is not defined. Did you mean: 'val_dataset'?
+(venv_py310) matson@matson-Lenovo-Y50-70:~/mushroom-mask-rcnn$ python train_model.py
+loading annotations into memory...
+Done (t=19.01s)
+creating index...
+index created!
+loading annotations into memory...
+Done (t=3.45s)
+creating index...
+index created!
+Running sanity check for mAP calculation...
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.00s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=0.77s).
+Accumulating evaluation results...
+DONE (t=0.03s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 256, in <module>
+    raise RuntimeError("sanity check done")
+RuntimeError: sanity check done
+
+
+if __name__ == "__main__":
+    print("Running sanity check for mAP calculation...")
+
+    # pick one image from validation
+    img, target = val_dataset[0]
+
+    # create a fake prediction that exactly matches ground truth
+    results = []
+    for box, label in zip(target['boxes'], target['labels']):
+        x1, y1, x2, y2 = box.tolist()
+        results.append({
+            "image_id": int(target['image_id'].item()),
+            "category_id": int(label.item()),  # should match ground truth
+            "bbox": [x1, y1, x2-x1, y2-y1],
+            "score": 1.0  # perfect score
+        })
+
+    import copy
+    base_dataset = val_dataset
+    cocoGt = copy.deepcopy(base_dataset.coco)
+
+    # -------- FIX CATEGORY IDS (MERGE INTO SINGLE CLASS) --------
+    for ann in cocoGt.dataset['annotations']:
+        if ann['category_id'] in [1, 2]:
+            ann['category_id'] = 1
+
+    # Replace categories with single class
+    cocoGt.dataset['categories'] = [
+        {"id": 1, "name": "mushroom"}
+    ]
+    cocoGt.createIndex()
+    cocoDt = cocoGt.loadRes(results)
+    from pycocotools.cocoeval import COCOeval
+    cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
+    raise RuntimeError("sanity check done")
