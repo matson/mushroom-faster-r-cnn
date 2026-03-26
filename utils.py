@@ -127,7 +127,21 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
         return
 
     # Load ground truth COCO object
-    cocoGt = base_dataset.coco
+    # safe copy - no real data changing 
+    import copy
+    cocoGt = copy.deepcopy(base_dataset.coco)
+
+    # -------- FIX CATEGORY IDS (MERGE INTO SINGLE CLASS) --------
+    for ann in cocoGt.dataset['annotations']:
+        if ann['category_id'] in [1, 2]:
+            ann['category_id'] = 1
+
+    # Replace categories with single class
+    cocoGt.dataset['categories'] = [
+        {"id": 1, "name": "mushroom"}
+    ]
+    # Rebuild index after modification
+    cocoGt.createIndex()
     cocoDt = cocoGt.loadRes(results)
 
     # Run COCO evaluation
@@ -138,6 +152,7 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
     cocoEval.summarize()
 
     print(f"AP50 (IoU=0.5): {cocoEval.stats[1]:.4f}")  # convenient quick metric
+
 
 # -------- SAVE CHECKPOINT --------
 def save_checkpoint(epoch, model, optimizer, scheduler, best_val_loss, filename="checkpoint.pth"):
