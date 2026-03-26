@@ -68,9 +68,13 @@ def show_sample_image(base_path, subfolder="rgb", index=0):
 
 # utils.py (or wherever you keep evaluate_mAP)
 
+from pycocotools.cocoeval import COCOeval
+import torch
+import numpy as np
+
 def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
     """
-    Compute COCO-style mAP and AR for a validation dataset or subset.
+    Compute COCO-style mAP and AR for a validation dataset.
 
     Args:
         model: torch model (Faster R-CNN)
@@ -85,15 +89,6 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
     else:
         base_dataset = val_dataset
 
-    # Get mushroom category ID
-    mushroom_cat_id = None
-    for cat_id, cat_info in base_dataset.coco.cats.items():
-        if cat_info['name'].lower() == "mushrooms":
-            mushroom_cat_id = cat_id
-            break
-    if mushroom_cat_id is None:
-        raise ValueError("Mushroom category not found in COCO categories!")
-
     model.eval()
     results = []
 
@@ -105,19 +100,24 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
 
             pred = model([img])[0]
 
-            # Filter predictions by score
+            # Get boxes, scores, and labels
             boxes = pred['boxes'].cpu().numpy()
             scores = pred['scores'].cpu().numpy()
-            for box, score in zip(boxes, scores):
+            labels = pred['labels'].cpu().numpy()
+
+            for box, score, label in zip(boxes, scores, labels):
                 if score < score_threshold:
                     continue
+                if label == 0:  # Skip background
+                    continue
+
                 x1, y1, x2, y2 = box
                 width = max(0, x2 - x1)
                 height = max(0, y2 - y1)
 
                 results.append({
                     "image_id": int(target['image_id'].item()),
-                    "category_id": mushroom_cat_id,
+                    "category_id": int(label),  # use predicted label
                     "bbox": [float(x1), float(y1), float(width), float(height)],
                     "score": float(score)
                 })
@@ -139,5 +139,28 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
 
     print(f"AP50 (IoU=0.5): {cocoEval.stats[1]:.4f}")  # convenient quick metric
 
+# -------- SAVE CHECKPOINT --------
+def save_checkpoint(epoch, model, optimizer, scheduler, best_val_loss, filename="checkpoint.pth"):
+    checkpoint = {
+        "epoch": epoch,
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict": scheduler.state_dict(),
+        "best_val_loss": best_val_loss
+    }
+    torch.save(checkpoint, filename)
+    print(f"Checkpoint saved: {filename}")
 
-
+# -------- LOAD CHECKPOINT --------
+def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu"):
+    checkpoint = torch.load(filename, map_location=device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    
+    if optimizer and scheduler:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+    
+    epoch = checkpoint["epoch"]
+    best_val_loss = checkpoint["best_val_loss"]
+    print(f"Checkpoint loaded: {filename} (epoch {epoch})")
+    return epoch, best_val_loss
