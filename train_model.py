@@ -407,6 +407,39 @@ verify()
 '''
 data 
 
+class MushroomCOCODataset(Dataset):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(256, 256)):
+        self.images_dir = images_dir
+        self.coco = COCO(annotations_file)
+        self.augmentations = augmentations
+        self.resize = resize
+
+        # Filter images that have at least one annotation
+        self.img_ids = [
+            img_id for img_id in self.coco.imgs.keys()
+            if len(self.coco.getAnnIds(imgIds=img_id)) > 0
+        ]
+
+    def __len__(self):
+        return len(self.img_ids)
+
+    def __getitem__(self, idx):
+        img_id = self.img_ids[idx]
+        img_info = self.coco.loadImgs(img_id)[0]
+
+        ann_ids = self.coco.getAnnIds(imgIds=img_id)
+        anns = self.coco.loadAnns(ann_ids)
+
+        print(f"\n--- IMAGE ID: {img_id} ---")
+        print("Image file:", img_info['file_name'])
+        print("Number of annotations:", len(anns))
+
+        for i, ann in enumerate(anns[:5]):  # only first 5 to avoid spam
+            print(f"Annotation {i}:")
+            print(ann)
+
+        raise RuntimeError("Stopping here to inspect annotations")
+
 
 
 '''
