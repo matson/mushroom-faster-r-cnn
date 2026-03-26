@@ -184,93 +184,62 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
 
 
 
-if __name__ == "__main__":
-    import copy
-    from pycocotools.cocoeval import COCOeval
 
-    print("Running sanity check for mAP calculation...")
+if __name__ == "__main__":
+    print("Running robust sanity check for mAP calculation...")
 
     # Pick one image from validation
     img, target = val_dataset[0]
 
-    # Ensure all boxes are float and correct format
-    gt_boxes = target['boxes'].tolist()  # [[x1, y1, x2, y2], ...]
-    gt_labels = target['labels'].tolist()  # [1, 1, ...]
+    # Ensure target is on CPU
+    boxes = target['boxes'].cpu()
+    labels = target['labels'].cpu()
+    image_id = int(target['image_id'].item())
 
-    # Create a fake prediction that exactly matches GT
+    # Build a "perfect" prediction that exactly matches GT
     results = []
-    for box, label in zip(gt_boxes, gt_labels):
-        x1, y1, x2, y2 = box
-        width = max(0.0, x2 - x1)
-        height = max(0.0, y2 - y1)
+    for box, label in zip(boxes, labels):
+        x1, y1, x2, y2 = box.tolist()
         results.append({
-            "image_id": int(target['image_id'].item()),  # ensure int
-            "category_id": 1,                            # force single class
-            "bbox": [float(x1), float(y1), float(width), float(height)],
-            "score": 1.0  # perfect score
+            "image_id": image_id,
+            "category_id": 1,       # Map everything to 1 (single mushroom class)
+            "bbox": [x1, y1, x2-x1, y2-y1],  # Convert to COCO format [x, y, w, h]
+            "score": 1.0             # Perfect confidence
         })
 
-    # Make a deepcopy of the GT COCO object
+    # Make a deepcopy of the dataset's COCO object
     base_dataset = val_dataset
     cocoGt = copy.deepcopy(base_dataset.coco)
 
-    # Merge categories into single class (mushroom)
+    # Map GT categories to 1 as well
     for ann in cocoGt.dataset['annotations']:
         if ann['category_id'] in [1, 2]:
             ann['category_id'] = 1
-    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
 
-    # Rebuild index
+    # Keep only one category
+    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
     cocoGt.createIndex()
+
+    # Debug prints
+    print("\n=== Debug Info ===")
+    print("GT first 5 annotations:", cocoGt.dataset['annotations'][:5])
+    print("Pred first 5 results:", results[:5])
+    print("GT image_ids:", [ann['image_id'] for ann in cocoGt.dataset['annotations'][:5]])
+    print("Pred image_ids:", [res['image_id'] for res in results[:5]])
+    print("GT category_ids:", [ann['category_id'] for ann in cocoGt.dataset['annotations'][:5]])
+    print("Pred category_ids:", [res['category_id'] for res in results[:5]])
+    print("==================\n")
 
     # Load predictions
     cocoDt = cocoGt.loadRes(results)
 
     # Run COCO evaluation
     cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
-    cocoEval.params.useCats = 1
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
 
-    # AP50 should now be 1.0 if everything aligns correctly
     print(f"Sanity check AP50: {cocoEval.stats[1]:.4f}")
 
-    creating index...
-index created!
-loading annotations into memory...
-Done (t=3.44s)
-creating index...
-index created!
-Running sanity check for mAP calculation...
-creating index...
-index created!
-Loading and preparing results...
-DONE (t=0.00s)
-creating index...
-index created!
-Running per image evaluation...
-Evaluate annotation type *bbox*
-DONE (t=0.81s).
-Accumulating evaluation results...
-DONE (t=0.02s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-Sanity check AP50: 0.0000
-Traceback (most recent call last):
-  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 271, in <module>
-    raise RuntimeError("Sanity check done")
-RuntimeError: Sanity check done
-
-    # Stop execution after sanity check
+    # Fail deliberately after sanity check to stop script
     raise RuntimeError("Sanity check done")
