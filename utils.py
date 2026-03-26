@@ -179,3 +179,47 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     best_val_loss = checkpoint["best_val_loss"]
     print(f"Checkpoint loaded: {filename} (epoch {epoch})")
     return epoch, best_val_loss
+
+
+Running sanity check for mAP calculation...
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 236, in <module>
+    cocoGt = copy.deepcopy(base_dataset.coco)
+NameError: name 'base_dataset' is not defined. Did you mean: 'val_dataset'?
+(venv_py310) matson@matson-Lenovo-Y50-70:~/mushroom-mask-rcnn$ python train_model.py
+loading annotations into memory...
+Done (t=19.01s)
+creating index...
+index created!
+loading annotations into memory...
+Done (t=3.45s)
+creating index...
+index created!
+Running sanity check for mAP calculation...
+creating index...
+index created!
+Loading and preparing results...
+DONE (t=0.00s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=0.77s).
+Accumulating evaluation results...
+DONE (t=0.03s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+Traceback (most recent call last):
+  File "/home/matson/mushroom-mask-rcnn/train_model.py", line 256, in <module>
+    raise RuntimeError("sanity check done")
+RuntimeError: sanity check done
