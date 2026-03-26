@@ -251,3 +251,95 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
+
+if __name__ == "__main__":
+    from pycocotools.coco import COCO
+    from pycocotools.cocoeval import COCOeval
+    import numpy as np
+    import torch
+
+    # Use your validation dataset
+    dataset = val_dataset  # exactly the variable you defined
+
+    # Create dummy predictions for sanity check (same size as val_dataset)
+    # Each pred is a dict: 'boxes', 'scores', 'labels'
+    # We'll just make small boxes to simulate predictions
+    predictions = []
+    for image, target in dataset:
+        # get the image_id
+        img_id = int(target['image_id'])
+        # Make dummy boxes: same as target boxes but scaled down
+        boxes = target['boxes'] * 0.2  # simulate scaling issue
+        scores = torch.ones(len(boxes))
+        labels = target['labels']
+        predictions.append({
+            "boxes": boxes,
+            "scores": scores,
+            "labels": labels
+        })
+
+    # --- Sanity check / mAP scaling ---
+    coco_gt = dataset.coco
+    scaled_predictions = []
+
+    print("Running sanity check for mAP calculation...\n")
+
+    for pred, target in zip(predictions, dataset):
+        boxes = pred['boxes'].cpu().numpy()
+        scores = pred['scores'].cpu().numpy()
+        labels = pred['labels'].cpu().numpy()
+        img_id = int(target['image_id'])
+        img_info = coco_gt.loadImgs(img_id)[0]
+        w_orig, h_orig = img_info['width'], img_info['height']
+        w_new, h_new = dataset.resize
+        scale_x = w_orig / w_new
+        scale_y = h_orig / h_new
+
+        print(f"\n=== Image {img_id} ===")
+        print(f"Original size: ({w_orig}, {h_orig}), Resized: ({w_new}, {h_new})")
+        print(f"Scale factors: x={scale_x:.4f}, y={scale_y:.4f}")
+        print("Pred boxes before scaling (first 5):")
+        print(boxes[:5])
+
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+
+        print("Pred boxes after scaling (first 5):")
+        print(boxes[:5])
+
+        # Show GT boxes for comparison
+        ann_ids = coco_gt.getAnnIds(imgIds=img_id)
+        anns = coco_gt.loadAnns(ann_ids)
+        gt_boxes = []
+        gt_labels = []
+        for ann in anns:
+            x, y, width, height = ann['bbox']
+            gt_boxes.append([x, y, x + width, y + height])
+            gt_labels.append(ann['category_id'])
+        gt_boxes = np.array(gt_boxes)
+        gt_labels = np.array(gt_labels)
+        print("GT boxes (first 5):")
+        print(gt_boxes[:5])
+        print("GT labels (first 5):")
+        print(gt_labels[:5])
+
+        # Convert to COCO format
+        coco_boxes = [[float(b[0]), float(b[1]), float(b[2]-b[0]), float(b[3]-b[1])] for b in boxes]
+
+        for b, s, l in zip(coco_boxes, scores, labels):
+            scaled_predictions.append({
+                "image_id": img_id,
+                "category_id": int(l),
+                "bbox": b,
+                "score": float(s)
+            })
+
+    print("\nLoading and preparing COCO results...")
+    coco_dt = coco_gt.loadRes(scaled_predictions)
+    coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
+
+    print("Running per-image evaluation...")
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    coco_eval.summarize()
+
