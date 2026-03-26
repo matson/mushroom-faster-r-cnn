@@ -74,6 +74,7 @@ bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
 
+
 class MushroomCOCODataset(Dataset):
     def __init__(self, images_dir, annotations_file, augmentations=None, resize=(256, 256)):
         self.images_dir = images_dir
@@ -93,28 +94,33 @@ class MushroomCOCODataset(Dataset):
     def __getitem__(self, idx):
         img_id = self.img_ids[idx]
         img_info = self.coco.loadImgs(img_id)[0]
+
+        img_id = self.img_ids[idx]
+        img_info = self.coco.loadImgs(img_id)[0]
         img_path = os.path.join(self.images_dir, img_info['file_name'])
-        image = Image.open(img_path).convert("RGB")
+        image = Image.open(img_path).convert("RGB") # convert to RBG 
         w_original, h_original = image.size
 
         ann_ids = self.coco.getAnnIds(imgIds=img_id)
-        anns = self.coco.loadAnns(ann_ids)
+        anns = self.coco.loadAnns(ann_ids) # returns list of dictionaries 
 
-        boxes = []
+        
+        boxes = [] # for tensor transformation 
         labels = []
 
-        # Keep only mushrooms
         for ann in anns:
-            if ann['category_id'] != 0:
-                continue
+            if ann['category_id'] == 0:
+                continue  # skip generic / placeholder
+
             x, y, width, height = ann['bbox']
             if width <= 1 or height <= 1:
                 continue
-            boxes.append([x, y, x + width, y + height])
-            labels.append(1)  # mushroom class
 
-        # Skip images with no valid boxes
-        if len(boxes) == 0:
+            boxes.append([x, y, x + width, y + height])
+            labels.append(1)  # all mushrooms = class 1
+        
+
+        if len(boxes) == 0: # skip images with no valid boxes
             raise ValueError(f"Image {img_id} has no valid mushrooms.")
 
         # Convert to tensors
@@ -156,8 +162,13 @@ class MushroomCOCODataset(Dataset):
             "image_id": torch.tensor([img_id])
         }
 
-        return image, target
+        # Sanity check to confirm lengths match
+        assert len(boxes) == len(labels), f"Boxes ({len(boxes)}) and labels ({len(labels)}) mismatch!"
 
+        # 🚨 Stop here for inspection
+        raise RuntimeError(f"Inspecting sample {idx}: boxes={boxes}, labels={labels}, image.shape={image.shape}")
+
+        return image, target
 
 
 
