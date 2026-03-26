@@ -185,43 +185,56 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
 
 
 if __name__ == "__main__":
+    import copy
+    from pycocotools.cocoeval import COCOeval
+
     print("Running sanity check for mAP calculation...")
 
-    # pick one image from validation
+    # Pick one image from validation
     img, target = val_dataset[0]
 
-    # create a fake prediction that exactly matches ground truth
+    # Ensure all boxes are float and correct format
+    gt_boxes = target['boxes'].tolist()  # [[x1, y1, x2, y2], ...]
+    gt_labels = target['labels'].tolist()  # [1, 1, ...]
+
+    # Create a fake prediction that exactly matches GT
     results = []
-    for box, label in zip(target['boxes'], target['labels']):
-        x1, y1, x2, y2 = box.tolist()
+    for box, label in zip(gt_boxes, gt_labels):
+        x1, y1, x2, y2 = box
+        width = max(0.0, x2 - x1)
+        height = max(0.0, y2 - y1)
         results.append({
-            "image_id": int(target['image_id'].item()),
-            "category_id": int(label.item()),  # should match ground truth
-            "bbox": [x1, y1, x2-x1, y2-y1],
+            "image_id": int(target['image_id'].item()),  # ensure int
+            "category_id": 1,                            # force single class
+            "bbox": [float(x1), float(y1), float(width), float(height)],
             "score": 1.0  # perfect score
         })
 
-    import copy
+    # Make a deepcopy of the GT COCO object
     base_dataset = val_dataset
     cocoGt = copy.deepcopy(base_dataset.coco)
 
-    # -------- FIX CATEGORY IDS (MERGE INTO SINGLE CLASS) --------
+    # Merge categories into single class (mushroom)
     for ann in cocoGt.dataset['annotations']:
         if ann['category_id'] in [1, 2]:
             ann['category_id'] = 1
+    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
 
-    # Replace categories with single class
-    cocoGt.dataset['categories'] = [
-        {"id": 1, "name": "mushroom"}
-    ]
+    # Rebuild index
     cocoGt.createIndex()
-    print("TARGET image_id:", int(target['image_id'].item()))
-    print("COCO image_ids (first 5):", list(cocoGt.imgs.keys())[:5])
+
+    # Load predictions
     cocoDt = cocoGt.loadRes(results)
-    from pycocotools.cocoeval import COCOeval
+
+    # Run COCO evaluation
     cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
+    cocoEval.params.useCats = 1
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
 
-    raise RuntimeError("sanity check done")
+    # AP50 should now be 1.0 if everything aligns correctly
+    print(f"Sanity check AP50: {cocoEval.stats[1]:.4f}")
+
+    # Stop execution after sanity check
+    raise RuntimeError("Sanity check done")
