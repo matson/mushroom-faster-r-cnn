@@ -279,6 +279,8 @@ def main():
         avg_train_loss = epoch_loss / len(train_loader)
         train_losses.append(avg_train_loss)
 
+        
+
 
         # -------- VALIDATION --------
         model.eval()
@@ -299,6 +301,18 @@ def main():
 
         avg_val_loss = val_loss / len(val_loader)
         val_losses.append(avg_val_loss)
+
+                # -------- PLOTTING AFTER EACH EPOCH --------
+        plt.figure(figsize=(8,6))
+        plt.plot(range(1, epoch+1), train_losses, label='Train Loss')
+        plt.plot(range(1, epoch+1), val_losses, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training & Validation Loss')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"loss_curve_epoch_{epoch}.png")  # save each epoch's plot
+        plt.close()
 
         print(f"\nEvaluating maP on validation set for epoch {epoch}...")
         evaluate_mAP(model, val_dataset, device, score_threshold=0.1)
