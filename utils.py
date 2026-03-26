@@ -300,6 +300,8 @@ if __name__ == "__main__":
         {"id": 1, "name": "mushroom"}
     ]
     cocoGt.createIndex()
+    print("TARGET image_id:", int(target['image_id'].item()))
+    print("COCO image_ids (first 5):", list(cocoGt.imgs.keys())[:5])
     cocoDt = cocoGt.loadRes(results)
     from pycocotools.cocoeval import COCOeval
     cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
