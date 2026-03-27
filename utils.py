@@ -180,6 +180,7 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     print(f"Checkpoint loaded: {filename} (epoch {epoch})")
     return epoch, best_val_loss
 
+
 if __name__ == "__main__":
     # Sanity check for mAP with resized dataset
     from pycocotools.coco import COCO
@@ -229,29 +230,20 @@ if __name__ == "__main__":
                 "score": 1.0
             })
 
+    from collections import Counter
+    counts = Counter(ann['image_id'] for ann in coco_gt.dataset['annotations'])
+    max_dets = max(counts.values())
+    print(f"Max annotations per image: {max_dets}, Avg: {sum(counts.values()) / len(counts):.1f}")
+
     print("\nLoading and preparing results...")
     coco_dt = coco_gt.loadRes(scaled_predictions)
     coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
+    coco_eval.params.maxDets = [1, 10, max_dets]
 
     print("Running per image evaluation...")
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
-Accumulating evaluation results...
-DONE (t=0.37s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.109
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.644
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.960
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.006
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.063
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.619
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.100
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.644
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.962
-entering training
 
 
 
