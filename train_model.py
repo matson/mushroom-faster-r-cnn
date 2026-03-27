@@ -378,80 +378,44 @@ def verify():
     plt.close()
 verify()
 
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+import copy
 import numpy as np
+import torch
 
-def compute_iou(box1, box2):
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
+cocoGt = copy.deepcopy(val_dataset.coco)
+predictions = []
 
-    inter = max(0, x2 - x1) * max(0, y2 - y1)
-
-    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
-
-    union = area1 + area2 - inter
-    return inter / union if union > 0 else 0
-
-
-print("\n=== SANITY CHECK: resized → original consistency ===")
-
-for i in range(10):  # just check first 10 images
-    image, target = val_dataset[i]
-
-    img_id = target['image_id'].item()
-    coco_gt = val_dataset.coco
-
-    # --- ORIGINAL GT from COCO ---
-    ann_ids = coco_gt.getAnnIds(imgIds=img_id)
-    anns = coco_gt.loadAnns(ann_ids)
-
-    gt_boxes_original = []
-    for ann in anns:
-        x, y, w, h = ann['bbox']
-        if w <= 1 or h <= 1:
-            continue
-        gt_boxes_original.append([x, y, x + w, y + h])
-
-    gt_boxes_original = np.array(gt_boxes_original)
-
-    # --- RESIZED boxes from dataset ---
-    resized_boxes = target['boxes'].numpy()
-
-    # --- SCALE BACK to original ---
-    img_info = coco_gt.loadImgs(img_id)[0]
+for img_idx in range(len(val_dataset)):
+    img, target = val_dataset[img_idx]
+    
+    gt_boxes = target['boxes'].clone()  # already resized
+    gt_labels = target['labels']
+    gt_scores = torch.ones(len(gt_boxes))  # dummy perfect confidence
+    
+    # Scale back to original image size
+    img_info = cocoGt.loadImgs(int(target['image_id']))[0]
     w_orig, h_orig = img_info['width'], img_info['height']
     w_new, h_new = val_dataset.resize
-
     scale_x = w_orig / w_new
     scale_y = h_orig / h_new
+    gt_boxes[:, [0, 2]] *= scale_x
+    gt_boxes[:, [1, 3]] *= scale_y
 
-    recovered_boxes = resized_boxes.copy()
-    recovered_boxes[:, [0, 2]] *= scale_x
-    recovered_boxes[:, [1, 3]] *= scale_y
+    # Convert to COCO [x, y, w, h]
+    for box, label, score in zip(gt_boxes, gt_labels, gt_scores):
+        x1, y1, x2, y2 = box
+        predictions.append({
+            "image_id": int(target['image_id']),
+            "category_id": int(label),
+            "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
+            "score": float(score)
+        })
 
-    # --- MATCH boxes ---
-    ious = []
-    for rb in recovered_boxes:
-        best_iou = 0
-        for gb in gt_boxes_original:
-            iou = compute_iou(rb, gb)
-            best_iou = max(best_iou, iou)
-        ious.append(best_iou)
-
-    print(f"Image {img_id}: mean IoU = {np.mean(ious):.4f}")
-
-
-=== SANITY CHECK: resized → original consistency ===
-Image 0: mean IoU = 1.0000
-Image 1: mean IoU = 1.0000
-Image 2: mean IoU = 1.0000
-Image 3: mean IoU = 1.0000
-Image 4: mean IoU = 1.0000
-Image 5: mean IoU = 1.0000
-Image 6: mean IoU = 1.0000
-Image 7: mean IoU = 1.0000
-Image 8: mean IoU = 1.0000
-Image 9: mean IoU = 1.0000
-entering training
+# Evaluate
+coco_dt = cocoGt.loadRes(predictions)
+coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
+coco_eval.evaluate()
+coco_eval.accumulate()
+coco_eval.summarize()
