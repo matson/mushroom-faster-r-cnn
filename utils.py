@@ -194,7 +194,7 @@ if __name__ == "__main__":
                  each element = dict with keys: 'boxes', 'scores', 'labels'
     """
     import copy
-    coco_gt = copy.deepcopy(dataset.coco)
+    coco_gt = copy.deepcopy(val_dataset.coco)
     for ann in coco_gt.dataset['annotations']:
         ann['category_id'] = 1  # remap all to mushroom
     coco_gt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
     print("Running sanity check for mAP calculation...")
 
-    for pred, (img, target) in zip(predictions, dataset):
+    for pred, (img, target) in zip(predictions, val_dataset):
         # Extract info
         boxes = pred['boxes'].cpu().numpy()       # [N, 4]
         scores = pred['scores'].cpu().numpy()     # [N]
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         w_orig, h_orig = img_info['width'], img_info['height']
 
         # Dataset resize
-        w_new, h_new = dataset.resize
+        w_new, h_new = val_dataset.resize
         scale_x = w_orig / w_new
         scale_y = h_orig / h_new
 
@@ -254,4 +254,6 @@ if __name__ == "__main__":
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
+
+
 
