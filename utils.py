@@ -248,96 +248,56 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
-if __name__ == "__main__":
-    from pycocotools.coco import COCO
-    from pycocotools.cocoeval import COCOeval
-    import numpy as np
-    import torch
+import copy
+import numpy as np
+import torch
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
-    dataset = val_dataset  # your validation dataset
+# --- Use your validation dataset ---
+base_dataset = val_dataset  # MushroomCOCODataset instance
+cocoGt = copy.deepcopy(base_dataset.coco)
 
-    # Prepare dummy predictions using GT boxes
-    predictions = []
-    for img_idx in range(len(dataset)):
-        image, target = dataset[img_idx]
-        # target['boxes'] is [N,4] resized to 256x256
-        # We'll pretend the model predicted exactly GT boxes with score 1.0
+# --- Fix category IDs ---
+for ann in cocoGt.dataset['annotations']:
+    if ann['category_id'] in [1, 2]:
+        ann['category_id'] = 1
+cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
+cocoGt.createIndex()
+
+# --- Prepare GT boxes as "predictions" for first 3 images ---
+predictions = []
+for img_idx in range(min(3, len(base_dataset))):
+    image, target = base_dataset[img_idx]
+    
+    boxes = target['boxes'].cpu().numpy()
+    labels = target['labels'].cpu().numpy()
+    scores = np.ones(len(boxes))  # dummy score for perfect match
+
+    # Convert to COCO format [x,y,w,h]
+    coco_boxes = []
+    for b in boxes:
+        x1, y1, x2, y2 = b
+        coco_boxes.append([float(x1), float(y1), float(x2 - x1), float(y2 - y1)])
+
+    # Add to predictions
+    for b, s, l in zip(coco_boxes, scores, labels):
         predictions.append({
-            'boxes': target['boxes'],           # boxes in resized image coords
-            'scores': torch.ones(len(target['boxes'])),  # dummy score
-            'labels': target['labels']          # same class labels
+            "image_id": int(target['image_id'].item()),  # important: convert tensor to int
+            "category_id": int(l),
+            "bbox": b,
+            "score": float(s)
         })
 
-    coco_gt = dataset.coco
-    scaled_predictions = []
+# --- Print first 3 predictions for sanity check ---
+print("\n=== First 3 images predictions ===")
+for pred in predictions[:15]:  # first 3 images × ~5 boxes each
+    print(f"image_id={pred['image_id']}, category_id={pred['category_id']}, bbox={pred['bbox']}, score={pred['score']}")
 
-    print("Running sanity check for mAP calculation using GT boxes as predictions...")
-
-    for pred, (image, target) in zip(predictions, [dataset[i] for i in range(len(dataset))]):
-        img_id = target['image_id'].item()  # integer
-        img_info = coco_gt.loadImgs(img_id)[0]
-        w_orig, h_orig = img_info['width'], img_info['height']
-
-        boxes = pred['boxes'].cpu().numpy()
-        scores = pred['scores'].cpu().numpy()
-        labels = pred['labels'].cpu().numpy()
-
-        # Dataset resize
-        w_new, h_new = dataset.resize
-        scale_x = w_orig / w_new
-        scale_y = h_orig / h_new
-
-        print(f"\n=== Image {img_id} ===")
-        print(f"Original size: ({w_orig}, {h_orig}), Resized: ({w_new}, {h_new})")
-        print(f"Scale factors: x={scale_x:.4f}, y={scale_y:.4f}")
-        print("Pred boxes before scaling (first 5):")
-        print(boxes[:5])
-
-        # Scale boxes back to original image size
-        boxes[:, [0, 2]] *= scale_x
-        boxes[:, [1, 3]] *= scale_y
-
-        print("Pred boxes after scaling (first 5):")
-        print(boxes[:5])
-
-        # Convert to COCO format [x, y, width, height]
-        coco_boxes = []
-        for b in boxes:
-            x, y, x2, y2 = b
-            coco_boxes.append([x, y, x2 - x, y2 - y])
-
-        for b, s, l in zip(coco_boxes, scores, labels):
-            scaled_predictions.append({
-                "image_id": img_id,
-                "category_id": int(l),
-                "bbox": [float(coord) for coord in b],
-                "score": float(s)
-            })
-
-    print("\nLoading and preparing COCO results...")
-    coco_dt = coco_gt.loadRes(scaled_predictions)
-    coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
-
-    print("Running per-image evaluation...")
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-
-DONE (t=0.35s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.001
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-entering training
-
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()  # prints only COCO AP metrics
+# --- Run COCOeval ---
+coco_dt = cocoGt.loadRes(predictions)
+coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
+coco_eval.evaluate()
+coco_eval.accumulate()
+print("\n=== Sanity mAP summary ===")
+coco_eval.summarize()
