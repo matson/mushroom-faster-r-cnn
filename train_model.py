@@ -38,6 +38,7 @@ from tqdm import tqdm
 
 from utils import visualize_samples
 from utils import evaluate_mAP
+from utils import save_checkpoint
 
 '''
 handle COCO style datasets - used for object detection 
@@ -378,70 +379,42 @@ def verify():
     plt.close()
 verify()
 
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-import copy
-import numpy as np
-import torch
+# from pycocotools.coco import COCO
+# from pycocotools.cocoeval import COCOeval
+# import copy
+# import numpy as np
+# import torch
 
-cocoGt = copy.deepcopy(val_dataset.coco)
-predictions = []
+# cocoGt = copy.deepcopy(val_dataset.coco)
+# predictions = []
 
-for img_idx in range(len(val_dataset)):
-    img, target = val_dataset[img_idx]
+# for img_idx in range(len(val_dataset)):
+#     img, target = val_dataset[img_idx]
     
-    gt_boxes = target['boxes'].clone()  # already resized
-    gt_labels = target['labels']
-    gt_scores = torch.ones(len(gt_boxes))  # dummy perfect confidence
+#     gt_boxes = target['boxes'].clone()  # already resized
+#     gt_labels = target['labels']
+#     gt_scores = torch.ones(len(gt_boxes))  # dummy perfect confidence
     
-    # Scale back to original image size
-    img_info = cocoGt.loadImgs(int(target['image_id']))[0]
-    w_orig, h_orig = img_info['width'], img_info['height']
-    w_new, h_new = val_dataset.resize
-    scale_x = w_orig / w_new
-    scale_y = h_orig / h_new
-    gt_boxes[:, [0, 2]] *= scale_x
-    gt_boxes[:, [1, 3]] *= scale_y
+#     # Scale back to original image size
+#     img_info = cocoGt.loadImgs(int(target['image_id']))[0]
+#     w_orig, h_orig = img_info['width'], img_info['height']
+#     w_new, h_new = val_dataset.resize
+#     scale_x = w_orig / w_new
+#     scale_y = h_orig / h_new
+#     gt_boxes[:, [0, 2]] *= scale_x
+#     gt_boxes[:, [1, 3]] *= scale_y
 
-    # Convert to COCO [x, y, w, h]
-    for box, label, score in zip(gt_boxes, gt_labels, gt_scores):
-        x1, y1, x2, y2 = box
-        predictions.append({
-            "image_id": int(target['image_id']),
-            "category_id": int(label),
-            "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
-            "score": float(score)
-        })
+#     # Convert to COCO [x, y, w, h]
+#     for box, label, score in zip(gt_boxes, gt_labels, gt_scores):
+#         x1, y1, x2, y2 = box
+#         predictions.append({
+#             "image_id": int(target['image_id']),
+#             "category_id": int(label),
+#             "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
+#             "score": float(score)
+#         })
 
-# Evaluate
-coco_dt = cocoGt.loadRes(predictions)
-coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
+# # Evaluate
+# coco_dt = cocoGt.loadRes(predictions)
+# coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
 
-
-creating index...
-index created!
-Loading and preparing results...
-DONE (t=1.90s)
-creating index...
-index created!
-Running per image evaluation...
-Evaluate annotation type *bbox*
-DONE (t=1.06s).
-Accumulating evaluation results...
-DONE (t=0.32s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.001
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.027
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.036
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-entering training
-coco_eval.evaluate()
-coco_eval.accumulate()
-coco_eval.summarize()
