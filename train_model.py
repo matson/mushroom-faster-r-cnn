@@ -378,28 +378,66 @@ def verify():
     plt.close()
 verify()
 
-creating index...
-index created!
-Running sanity check for mAP calculation...
-Loading and preparing results...
-DONE (t=0.00s)
-creating index...
-index created!
-Running per image evaluation...
-Evaluate annotation type *bbox*
-DONE (t=0.51s).
-Accumulating evaluation results...
-DONE (t=0.03s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-Traceback (most recent call last):
+import numpy as np
+
+def compute_iou(box1, box2):
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+
+    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+
+    union = area1 + area2 - inter
+    return inter / union if union > 0 else 0
+
+
+print("\n=== SANITY CHECK: resized → original consistency ===")
+
+for i in range(10):  # just check first 10 images
+    image, target = val_dataset[i]
+
+    img_id = target['image_id'].item()
+    coco_gt = val_dataset.coco
+
+    # --- ORIGINAL GT from COCO ---
+    ann_ids = coco_gt.getAnnIds(imgIds=img_id)
+    anns = coco_gt.loadAnns(ann_ids)
+
+    gt_boxes_original = []
+    for ann in anns:
+        x, y, w, h = ann['bbox']
+        if w <= 1 or h <= 1:
+            continue
+        gt_boxes_original.append([x, y, x + w, y + h])
+
+    gt_boxes_original = np.array(gt_boxes_original)
+
+    # --- RESIZED boxes from dataset ---
+    resized_boxes = target['boxes'].numpy()
+
+    # --- SCALE BACK to original ---
+    img_info = coco_gt.loadImgs(img_id)[0]
+    w_orig, h_orig = img_info['width'], img_info['height']
+    w_new, h_new = val_dataset.resize
+
+    scale_x = w_orig / w_new
+    scale_y = h_orig / h_new
+
+    recovered_boxes = resized_boxes.copy()
+    recovered_boxes[:, [0, 2]] *= scale_x
+    recovered_boxes[:, [1, 3]] *= scale_y
+
+    # --- MATCH boxes ---
+    ious = []
+    for rb in recovered_boxes:
+        best_iou = 0
+        for gb in gt_boxes_original:
+            iou = compute_iou(rb, gb)
+            best_iou = max(best_iou, iou)
+        ious.append(best_iou)
+
+    print(f"Image {img_id}: mean IoU = {np.mean(ious):.4f}")
