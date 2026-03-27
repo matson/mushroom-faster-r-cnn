@@ -180,8 +180,6 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     print(f"Checkpoint loaded: {filename} (epoch {epoch})")
     return epoch, best_val_loss
 
-
-
 if __name__ == "__main__":
     # Sanity check for mAP with resized dataset
     from pycocotools.coco import COCO
@@ -204,11 +202,10 @@ if __name__ == "__main__":
 
     print("Running sanity check for mAP calculation...")
 
-    for pred, (img, target) in zip(predictions, val_dataset):
-        # Extract info
-        boxes = pred['boxes'].cpu().numpy()       # [N, 4]
-        scores = pred['scores'].cpu().numpy()     # [N]
-        labels = pred['labels'].cpu().numpy()     # [N]
+    for img, target in val_dataset:
+        # Use GT boxes directly as perfect predictions
+        boxes = target['boxes'].numpy().copy()    # GT boxes in 256x256 space
+        labels = target['labels'].numpy()
         img_id = int(target['image_id'].item())
         img_info = coco_gt.loadImgs(img_id)[0]
         w_orig, h_orig = img_info['width'], img_info['height']
@@ -218,32 +215,18 @@ if __name__ == "__main__":
         scale_x = w_orig / w_new
         scale_y = h_orig / h_new
 
-        # Debug print
-        print(f"\n=== Image {img_id} ===")
-        print(f"Original size: ({w_orig}, {h_orig}), Resized: ({w_new}, {h_new})")
-        print(f"Scale factors: x={scale_x:.4f}, y={scale_y:.4f}")
-        print("Pred boxes before scaling:")
-        print(boxes[:5])
-
-        # Rescale boxes back to original image size
+        # Rescale GT boxes back to original image size
         boxes[:, [0, 2]] *= scale_x
         boxes[:, [1, 3]] *= scale_y
 
-        print("Pred boxes after scaling:")
-        print(boxes[:5])
-
-        # Convert to COCO format [x, y, width, height]
-        coco_boxes = []
-        for b in boxes:
-            x, y, x2, y2 = b
-            coco_boxes.append([x, y, x2 - x, y2 - y])
-
-        for b, s, l in zip(coco_boxes, scores, labels):
+        # Convert to COCO format [x, y, width, height] with perfect score
+        for box, label in zip(boxes, labels):
+            x1, y1, x2, y2 = box
             scaled_predictions.append({
                 "image_id": img_id,
-                "category_id": int(l),
-                "bbox": [float(coord) for coord in b],
-                "score": float(s)
+                "category_id": int(label),
+                "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
+                "score": 1.0
             })
 
     print("\nLoading and preparing results...")
