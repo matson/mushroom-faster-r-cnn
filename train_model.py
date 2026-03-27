@@ -441,3 +441,17 @@ for i in range(10):  # just check first 10 images
         ious.append(best_iou)
 
     print(f"Image {img_id}: mean IoU = {np.mean(ious):.4f}")
+
+
+=== SANITY CHECK: resized → original consistency ===
+Image 0: mean IoU = 1.0000
+Image 1: mean IoU = 1.0000
+Image 2: mean IoU = 1.0000
+Image 3: mean IoU = 1.0000
+Image 4: mean IoU = 1.0000
+Image 5: mean IoU = 1.0000
+Image 6: mean IoU = 1.0000
+Image 7: mean IoU = 1.0000
+Image 8: mean IoU = 1.0000
+Image 9: mean IoU = 1.0000
+entering training
