@@ -301,3 +301,48 @@ coco_eval.evaluate()
 coco_eval.accumulate()
 print("\n=== Sanity mAP summary ===")
 coco_eval.summarize()
+
+ndex created!
+creating index...
+index created!
+
+=== First 3 images predictions ===
+image_id=0, category_id=1, bbox=[5.0, 67.9111099243164, 16.80000114440918, 26.311111450195312], score=1.0
+image_id=0, category_id=1, bbox=[187.0, 98.13333892822266, 17.0, 25.24443817138672], score=1.0
+image_id=0, category_id=1, bbox=[190.1999969482422, 193.7777862548828, 20.20001220703125, 32.0], score=1.0
+image_id=0, category_id=1, bbox=[37.0, 77.15555572509766, 15.799999237060547, 27.377777099609375], score=1.0
+image_id=0, category_id=1, bbox=[160.1999969482422, 172.08889770507812, 17.400009155273438, 29.155548095703125], score=1.0
+image_id=0, category_id=1, bbox=[53.60000228881836, 64.0, 19.999996185302734, 35.911109924316406], score=1.0
+image_id=0, category_id=1, bbox=[126.5999984741211, 146.4888916015625, 14.200004577636719, 27.377777099609375], score=1.0
+image_id=0, category_id=1, bbox=[140.0, 33.77777862548828, 14.600006103515625, 24.177780151367188], score=1.0
+image_id=0, category_id=1, bbox=[208.8000030517578, 204.44444274902344, 17.399993896484375, 27.377792358398438], score=1.0
+image_id=0, category_id=1, bbox=[219.0, 15.644444465637207, 18.600006103515625, 29.155555725097656], score=1.0
+image_id=0, category_id=1, bbox=[88.20000457763672, 166.40000915527344, 14.199996948242188, 23.466659545898438], score=1.0
+image_id=0, category_id=1, bbox=[191.8000030517578, 120.8888931274414, 14.800003051757812, 22.400001525878906], score=1.0
+image_id=0, category_id=1, bbox=[62.60000228881836, 216.53334045410156, 18.60000228881836, 32.71110534667969], score=1.0
+image_id=0, category_id=1, bbox=[43.400001525878906, 143.6444549560547, 14.200000762939453, 21.688888549804688], score=1.0
+image_id=0, category_id=1, bbox=[178.40000915527344, 65.77777862548828, 15.79998779296875, 25.95555877685547], score=1.0
+Loading and preparing results...
+DONE (t=0.00s)
+creating index...
+index created!
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=1.30s).
+Accumulating evaluation results...
+DONE (t=0.03s).
+
+=== Sanity mAP summary ===
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+entering training
