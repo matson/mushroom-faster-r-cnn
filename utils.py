@@ -181,6 +181,7 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     return epoch, best_val_loss
 
 
+
 if __name__ == "__main__":
     # Sanity check for mAP with resized dataset
     from pycocotools.coco import COCO
@@ -192,17 +193,23 @@ if __name__ == "__main__":
     predictions: list of model outputs for each image
                  each element = dict with keys: 'boxes', 'scores', 'labels'
     """
-    coco_gt = dataset.coco
+    import copy
+    coco_gt = copy.deepcopy(dataset.coco)
+    for ann in coco_gt.dataset['annotations']:
+        ann['category_id'] = 1  # remap all to mushroom
+    coco_gt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
+    coco_gt.createIndex()
+
     scaled_predictions = []
 
     print("Running sanity check for mAP calculation...")
 
-    for pred, target in zip(predictions, dataset):
+    for pred, (img, target) in zip(predictions, dataset):
         # Extract info
         boxes = pred['boxes'].cpu().numpy()       # [N, 4]
         scores = pred['scores'].cpu().numpy()     # [N]
         labels = pred['labels'].cpu().numpy()     # [N]
-        img_id = int(target['image_id'])
+        img_id = int(target['image_id'].item())
         img_info = coco_gt.loadImgs(img_id)[0]
         w_orig, h_orig = img_info['width'], img_info['height']
 
@@ -248,36 +255,3 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
-creating index...
-index created!
-Dataset idx: 0, target['image_id']: tensor([0]), COCO expects: 0
-Dataset idx: 1, target['image_id']: tensor([1]), COCO expects: 1
-Dataset idx: 2, target['image_id']: tensor([2]), COCO expects: 2
-Loading and preparing results...
-DONE (t=1.88s)
-creating index...
-index created!
-
-Running evaluation...
-Running per image evaluation...
-Evaluate annotation type *bbox*
-DONE (t=98.29s).
-Accumulating evaluation results...
-DONE (t=0.34s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.001
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-entering training
-Epoch [1/10]:   0%|    
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
