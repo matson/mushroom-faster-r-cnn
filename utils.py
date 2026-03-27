@@ -245,5 +245,20 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
+DONE (t=0.64s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = -1.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=220 ] = 0.990
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=220 ] = 0.990
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=220 ] = 0.990
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=220 ] = 0.990
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=220 ] = 1.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.006
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.063
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=220 ] = 1.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=220 ] = 0.993
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=220 ] = 1.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=220 ] = 1.000
+entering training
+
 
 
