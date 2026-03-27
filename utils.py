@@ -248,60 +248,36 @@ if __name__ == "__main__":
     coco_eval.accumulate()
     coco_eval.summarize()
 
-import copy
-import numpy as np
-import torch
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+creating index...
+index created!
+Dataset idx: 0, target['image_id']: tensor([0]), COCO expects: 0
+Dataset idx: 1, target['image_id']: tensor([1]), COCO expects: 1
+Dataset idx: 2, target['image_id']: tensor([2]), COCO expects: 2
+Loading and preparing results...
+DONE (t=1.88s)
+creating index...
+index created!
 
-if __name__ == "__main__":
-    base_dataset = val_dataset  # your validation dataset
-    cocoGt = copy.deepcopy(base_dataset.coco)
-
-    # --- Fix category IDs ---
-    for ann in cocoGt.dataset['annotations']:
-        if ann['category_id'] in [1, 2]:
-            ann['category_id'] = 1
-    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
-    cocoGt.createIndex()
-
-    # --- Prepare GT boxes as "predictions" ---
-    predictions = []
-
-    for img_idx in range(len(base_dataset)):
-        image, target = base_dataset[img_idx]
-
-        # Original COCO image ID
-        coco_img_id = base_dataset.img_ids[img_idx]  # This is what COCO expects
-
-        # Log the IDs for the first 3 images
-        if img_idx < 3:
-            print(f"Dataset idx: {img_idx}, target['image_id']: {target['image_id']}, COCO expects: {coco_img_id}")
-
-        # Use GT boxes in resized image coords
-        boxes = target['boxes'].cpu().numpy()
-        labels = target['labels'].cpu().numpy()
-        scores = np.ones(len(boxes))  # dummy score
-
-        # Convert to COCO bbox format [x,y,w,h]
-        coco_boxes = []
-        for b in boxes:
-            x1, y1, x2, y2 = b
-            coco_boxes.append([float(x1), float(y1), float(x2 - x1), float(y2 - y1)])
-
-        for b, s, l in zip(coco_boxes, scores, labels):
-            predictions.append({
-                "image_id": int(target['image_id'].item()),  # tensor → int
-                "category_id": int(l),
-                "bbox": b,
-                "score": float(s)
-            })
-
-    # --- Load results and evaluate ---
-    coco_dt = cocoGt.loadRes(predictions)
-    coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
-
-    print("\nRunning evaluation...")
+Running evaluation...
+Running per image evaluation...
+Evaluate annotation type *bbox*
+DONE (t=98.29s).
+Accumulating evaluation results...
+DONE (t=0.34s).
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.001
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
+entering training
+Epoch [1/10]:   0%|    
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
