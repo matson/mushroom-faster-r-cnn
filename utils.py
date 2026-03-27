@@ -5,6 +5,8 @@ from PIL import Image
 import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+import torch
+import numpy as np
 
 def visualize_samples(dataset, num_samples=3):
     """
@@ -66,12 +68,6 @@ def show_sample_image(base_path, subfolder="rgb", index=0):
     plt.close()
 
 
-# utils.py (or wherever you keep evaluate_mAP)
-
-from pycocotools.cocoeval import COCOeval
-import torch
-import numpy as np
-
 def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
     """
     Compute COCO-style mAP and AR for a validation dataset.
@@ -105,6 +101,14 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
             scores = pred['scores'].cpu().numpy()
             labels = pred['labels'].cpu().numpy()
 
+            # Scale predicted boxes from 256x256 back to original image coords
+            img_id = int(target['image_id'].item())
+            img_info = base_dataset.coco.loadImgs(img_id)[0]
+            w_orig, h_orig = img_info['width'], img_info['height']
+            w_new, h_new = base_dataset.resize
+            scale_x = w_orig / w_new
+            scale_y = h_orig / h_new
+
             for box, score, label in zip(boxes, scores, labels):
                 if score < score_threshold:
                     continue
@@ -112,12 +116,14 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
                     continue
 
                 x1, y1, x2, y2 = box
+                x1 *= scale_x;  x2 *= scale_x
+                y1 *= scale_y;  y2 *= scale_y
                 width = max(0, x2 - x1)
                 height = max(0, y2 - y1)
 
                 results.append({
-                    "image_id": int(target['image_id'].item()),
-                    "category_id": int(label),  # use predicted label
+                    "image_id": img_id,
+                    "category_id": int(label),
                     "bbox": [float(x1), float(y1), float(width), float(height)],
                     "score": float(score)
                 })
@@ -133,8 +139,7 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
 
     # -------- FIX CATEGORY IDS (MERGE INTO SINGLE CLASS) --------
     for ann in cocoGt.dataset['annotations']:
-        if ann['category_id'] in [1, 2]:
-            ann['category_id'] = 1
+        ann['category_id'] = 1  # remap all to mushroom
 
     # Replace categories with single class
     cocoGt.dataset['categories'] = [
@@ -144,9 +149,15 @@ def evaluate_mAP(model, val_dataset, device, score_threshold=0.1):
     cocoGt.createIndex()
     cocoDt = cocoGt.loadRes(results)
 
+    # Set maxDets to cover densest image in dataset
+    from collections import Counter
+    counts = Counter(ann['image_id'] for ann in cocoGt.dataset['annotations'])
+    max_dets = max(counts.values())
+
     # Run COCO evaluation
     cocoEval = COCOeval(cocoGt, cocoDt, iouType='bbox')
     cocoEval.params.useCats = 1  # ensure categories are used
+    cocoEval.params.maxDets = [1, 10, max_dets]
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
@@ -181,86 +192,69 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     return epoch, best_val_loss
 
 
-if __name__ == "__main__":
-    # Sanity check for mAP with resized dataset
-    from pycocotools.coco import COCO
-    from pycocotools.cocoeval import COCOeval
-    import numpy as np
-
-    """
-    dataset: your MushroomCOCODataset
-    predictions: list of model outputs for each image
-                 each element = dict with keys: 'boxes', 'scores', 'labels'
-    """
-    import copy
-    coco_gt = copy.deepcopy(val_dataset.coco)
-    for ann in coco_gt.dataset['annotations']:
-        ann['category_id'] = 1  # remap all to mushroom
-    coco_gt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
-    coco_gt.createIndex()
-
-    scaled_predictions = []
-
-    print("Running sanity check for mAP calculation...")
-
-    for img, target in val_dataset:
-        # Use GT boxes directly as perfect predictions
-        boxes = target['boxes'].numpy().copy()    # GT boxes in 256x256 space
-        labels = target['labels'].numpy()
-        img_id = int(target['image_id'].item())
-        img_info = coco_gt.loadImgs(img_id)[0]
-        w_orig, h_orig = img_info['width'], img_info['height']
-
-        # Dataset resize
-        w_new, h_new = val_dataset.resize
-        scale_x = w_orig / w_new
-        scale_y = h_orig / h_new
-
-        # Rescale GT boxes back to original image size
-        boxes[:, [0, 2]] *= scale_x
-        boxes[:, [1, 3]] *= scale_y
-
-        # Convert to COCO format [x, y, width, height] with perfect score
-        for box, label in zip(boxes, labels):
-            x1, y1, x2, y2 = box
-            scaled_predictions.append({
-                "image_id": img_id,
-                "category_id": int(label),
-                "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
-                "score": 1.0
-            })
-
-    from collections import Counter
-    counts = Counter(ann['image_id'] for ann in coco_gt.dataset['annotations'])
-    max_dets = max(counts.values())
-    print(f"Max annotations per image: {max_dets}, Avg: {sum(counts.values()) / len(counts):.1f}")
-
-    print("\nLoading and preparing results...")
-    coco_dt = coco_gt.loadRes(scaled_predictions)
-    coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
-    coco_eval.params.maxDets = [1, 10, max_dets]
-
-    print("Running per image evaluation...")
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    coco_eval.summarize()
-
-DONE (t=0.91s).
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.614
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.109
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.644
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.960
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.006
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.063
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.619
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.100
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.644
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.962
-entering training
 
 
+# if __name__ == "__main__":
+#     # Sanity check for mAP with resized dataset
+#     from pycocotools.coco import COCO
+#     from pycocotools.cocoeval import COCOeval
+#     import numpy as np
 
+#     """
+#     dataset: your MushroomCOCODataset
+#     predictions: list of model outputs for each image
+#                  each element = dict with keys: 'boxes', 'scores', 'labels'
+#     """
+#     import copy
+#     coco_gt = copy.deepcopy(val_dataset.coco)
+#     for ann in coco_gt.dataset['annotations']:
+#         ann['category_id'] = 1  # remap all to mushroom
+#     coco_gt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
+#     coco_gt.createIndex()
 
+#     scaled_predictions = []
+
+#     print("Running sanity check for mAP calculation...")
+
+#     for img, target in val_dataset:
+#         # Use GT boxes directly as perfect predictions
+#         boxes = target['boxes'].numpy().copy()    # GT boxes in 256x256 space
+#         labels = target['labels'].numpy()
+#         img_id = int(target['image_id'].item())
+#         img_info = coco_gt.loadImgs(img_id)[0]
+#         w_orig, h_orig = img_info['width'], img_info['height']
+
+#         # Dataset resize
+#         w_new, h_new = val_dataset.resize
+#         scale_x = w_orig / w_new
+#         scale_y = h_orig / h_new
+
+#         # Rescale GT boxes back to original image size
+#         boxes[:, [0, 2]] *= scale_x
+#         boxes[:, [1, 3]] *= scale_y
+
+#         # Convert to COCO format [x, y, width, height] with perfect score
+#         for box, label in zip(boxes, labels):
+#             x1, y1, x2, y2 = box
+#             scaled_predictions.append({
+#                 "image_id": img_id,
+#                 "category_id": int(label),
+#                 "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
+#                 "score": 1.0
+#             })
+
+#     from collections import Counter
+#     counts = Counter(ann['image_id'] for ann in coco_gt.dataset['annotations'])
+#     max_dets = max(counts.values())
+#     print(f"Max annotations per image: {max_dets}, Avg: {sum(counts.values()) / len(counts):.1f}")
+
+#     print("\nLoading and preparing results...")
+#     coco_dt = coco_gt.loadRes(scaled_predictions)
+#     coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
+#     coco_eval.params.maxDets = [1, 10, max_dets]
+
+#     print("Running per image evaluation...")
+#     coco_eval.evaluate()
+#     coco_eval.accumulate()
+#     coco_eval.summarize()
 
