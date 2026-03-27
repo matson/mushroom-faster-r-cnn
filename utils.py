@@ -254,95 +254,54 @@ import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-# --- Use your validation dataset ---
-base_dataset = val_dataset  # MushroomCOCODataset instance
-cocoGt = copy.deepcopy(base_dataset.coco)
+if __name__ == "__main__":
+    base_dataset = val_dataset  # your validation dataset
+    cocoGt = copy.deepcopy(base_dataset.coco)
 
-# --- Fix category IDs ---
-for ann in cocoGt.dataset['annotations']:
-    if ann['category_id'] in [1, 2]:
-        ann['category_id'] = 1
-cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
-cocoGt.createIndex()
+    # --- Fix category IDs ---
+    for ann in cocoGt.dataset['annotations']:
+        if ann['category_id'] in [1, 2]:
+            ann['category_id'] = 1
+    cocoGt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
+    cocoGt.createIndex()
 
-# --- Prepare GT boxes as "predictions" for first 3 images ---
-predictions = []
-for img_idx in range(min(3, len(base_dataset))):
-    image, target = base_dataset[img_idx]
-    
-    boxes = target['boxes'].cpu().numpy()
-    labels = target['labels'].cpu().numpy()
-    scores = np.ones(len(boxes))  # dummy score for perfect match
+    # --- Prepare GT boxes as "predictions" ---
+    predictions = []
 
-    # Convert to COCO format [x,y,w,h]
-    coco_boxes = []
-    for b in boxes:
-        x1, y1, x2, y2 = b
-        coco_boxes.append([float(x1), float(y1), float(x2 - x1), float(y2 - y1)])
+    for img_idx in range(len(base_dataset)):
+        image, target = base_dataset[img_idx]
 
-    # Add to predictions
-    for b, s, l in zip(coco_boxes, scores, labels):
-        predictions.append({
-            "image_id": int(target['image_id'].item()),  # important: convert tensor to int
-            "category_id": int(l),
-            "bbox": b,
-            "score": float(s)
-        })
+        # Original COCO image ID
+        coco_img_id = base_dataset.img_ids[img_idx]  # This is what COCO expects
 
-# --- Print first 3 predictions for sanity check ---
-print("\n=== First 3 images predictions ===")
-for pred in predictions[:15]:  # first 3 images × ~5 boxes each
-    print(f"image_id={pred['image_id']}, category_id={pred['category_id']}, bbox={pred['bbox']}, score={pred['score']}")
+        # Log the IDs for the first 3 images
+        if img_idx < 3:
+            print(f"Dataset idx: {img_idx}, target['image_id']: {target['image_id']}, COCO expects: {coco_img_id}")
 
-# --- Run COCOeval ---
-coco_dt = cocoGt.loadRes(predictions)
-coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
-coco_eval.evaluate()
-coco_eval.accumulate()
-print("\n=== Sanity mAP summary ===")
-coco_eval.summarize()
+        # Use GT boxes in resized image coords
+        boxes = target['boxes'].cpu().numpy()
+        labels = target['labels'].cpu().numpy()
+        scores = np.ones(len(boxes))  # dummy score
 
-ndex created!
-creating index...
-index created!
+        # Convert to COCO bbox format [x,y,w,h]
+        coco_boxes = []
+        for b in boxes:
+            x1, y1, x2, y2 = b
+            coco_boxes.append([float(x1), float(y1), float(x2 - x1), float(y2 - y1)])
 
-=== First 3 images predictions ===
-image_id=0, category_id=1, bbox=[5.0, 67.9111099243164, 16.80000114440918, 26.311111450195312], score=1.0
-image_id=0, category_id=1, bbox=[187.0, 98.13333892822266, 17.0, 25.24443817138672], score=1.0
-image_id=0, category_id=1, bbox=[190.1999969482422, 193.7777862548828, 20.20001220703125, 32.0], score=1.0
-image_id=0, category_id=1, bbox=[37.0, 77.15555572509766, 15.799999237060547, 27.377777099609375], score=1.0
-image_id=0, category_id=1, bbox=[160.1999969482422, 172.08889770507812, 17.400009155273438, 29.155548095703125], score=1.0
-image_id=0, category_id=1, bbox=[53.60000228881836, 64.0, 19.999996185302734, 35.911109924316406], score=1.0
-image_id=0, category_id=1, bbox=[126.5999984741211, 146.4888916015625, 14.200004577636719, 27.377777099609375], score=1.0
-image_id=0, category_id=1, bbox=[140.0, 33.77777862548828, 14.600006103515625, 24.177780151367188], score=1.0
-image_id=0, category_id=1, bbox=[208.8000030517578, 204.44444274902344, 17.399993896484375, 27.377792358398438], score=1.0
-image_id=0, category_id=1, bbox=[219.0, 15.644444465637207, 18.600006103515625, 29.155555725097656], score=1.0
-image_id=0, category_id=1, bbox=[88.20000457763672, 166.40000915527344, 14.199996948242188, 23.466659545898438], score=1.0
-image_id=0, category_id=1, bbox=[191.8000030517578, 120.8888931274414, 14.800003051757812, 22.400001525878906], score=1.0
-image_id=0, category_id=1, bbox=[62.60000228881836, 216.53334045410156, 18.60000228881836, 32.71110534667969], score=1.0
-image_id=0, category_id=1, bbox=[43.400001525878906, 143.6444549560547, 14.200000762939453, 21.688888549804688], score=1.0
-image_id=0, category_id=1, bbox=[178.40000915527344, 65.77777862548828, 15.79998779296875, 25.95555877685547], score=1.0
-Loading and preparing results...
-DONE (t=0.00s)
-creating index...
-index created!
-Running per image evaluation...
-Evaluate annotation type *bbox*
-DONE (t=1.30s).
-Accumulating evaluation results...
-DONE (t=0.03s).
+        for b, s, l in zip(coco_boxes, scores, labels):
+            predictions.append({
+                "image_id": int(target['image_id'].item()),  # tensor → int
+                "category_id": int(l),
+                "bbox": b,
+                "score": float(s)
+            })
 
-=== Sanity mAP summary ===
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.000
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.000
-entering training
+    # --- Load results and evaluate ---
+    coco_dt = cocoGt.loadRes(predictions)
+    coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
+
+    print("\nRunning evaluation...")
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    coco_eval.summarize()
