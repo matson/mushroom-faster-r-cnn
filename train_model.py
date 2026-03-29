@@ -258,6 +258,7 @@ def main():
     
     print("entering training")
     # num_epochs = 10
+    global start_epoch
     best_val_loss = float('inf')
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
@@ -349,8 +350,8 @@ def main():
         
         print(f"Epoch {epoch+1} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
-        # Step learning rate scheduler
-        lr_scheduler.step()
+        # # Step learning rate scheduler
+        # lr_scheduler.step()
 
         # -------- SAVE CHECKPOINT --------
         save_checkpoint(
