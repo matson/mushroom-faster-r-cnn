@@ -262,7 +262,7 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(1,6):
+    for epoch in range(start_epoch, start_epoch + 5):
 
         model.train()
         epoch_loss = 0
@@ -327,13 +327,15 @@ def main():
                 model.eval()  # switch back to eval mode
 
         avg_val_loss = val_loss / len(val_loader)
+        
         lr_scheduler.step(avg_val_loss)
+        
         val_losses.append(avg_val_loss)
 
                 # -------- PLOTTING AFTER EACH EPOCH --------
         plt.figure(figsize=(8,6))
-        plt.plot(range(1, epoch+1), train_losses, label='Train Loss')
-        plt.plot(range(1, epoch+1), val_losses, label='Validation Loss')
+        plt.plot(range(start_epoch, epoch+1), train_losses, label='Train Loss')
+        plt.plot(range(start_epoch, epoch+1), val_losses, label='Validation Loss')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.title('Training & Validation Loss')
@@ -365,18 +367,6 @@ def main():
             best_val_loss = avg_val_loss
             torch.save(model.state_dict(), "best_fasterrcnn_mushroom.pth")
 
-    # -------- PLOTTING --------
-
-    plt.figure(figsize=(8,6))
-    plt.plot(range(1, 11), train_losses, label='Train Loss')
-    plt.plot(range(1, 11), val_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training & Validation Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig("loss_curve.png")
-    plt.close()
 if __name__ == "__main__":
     main()
 
