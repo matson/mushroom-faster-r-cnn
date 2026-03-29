@@ -216,6 +216,7 @@ val_loader = DataLoader(
 # visualize_samples(val_dataset, num_samples=3)
 
 # -------- LOAD MODEL (Faster R-CNN) --------
+# -------- LOAD MODEL (Faster R-CNN) --------
 weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=weights)
 
@@ -227,10 +228,29 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
 
+# Define optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+optimizer = torch.optim.SGD(params, lr=0.0005, momentum=0.9, weight_decay=0.0001)
 
+# -------- NEW: LOAD CHECKPOINT --------
+checkpoint_path = "best_fasterrcnn_mushroom.pth"  # Ensure this matches your file name
+start_epoch = 1
+best_val_loss = float('inf')
+
+if os.path.exists(checkpoint_path):
+    print(f"--- Loading Checkpoint: {checkpoint_path} ---")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    start_epoch = checkpoint['epoch'] + 1
+    best_val_loss = checkpoint.get('best_val_loss', float('inf'))
+    print(f"Resuming from Epoch {start_epoch}")
+
+# -------- NEW: DEFINE PLATEAU SCHEDULER --------
+# We define this AFTER loading so it starts fresh for the next 10 epochs
+lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.1, patience=2, verbose=True
+)
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
 def main():
