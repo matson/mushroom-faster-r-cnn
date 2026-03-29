@@ -216,7 +216,6 @@ val_loader = DataLoader(
 # visualize_samples(val_dataset, num_samples=3)
 
 # -------- LOAD MODEL (Faster R-CNN) --------
-# -------- LOAD MODEL (Faster R-CNN) --------
 weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=weights)
 
@@ -254,13 +253,16 @@ lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
 def main():
+    
+    accum_steps = 4 
+    
     print("entering training")
     # num_epochs = 10
     best_val_loss = float('inf')
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(1,11):
+    for epoch in range(1,6):
 
         model.train()
         epoch_loss = 0
@@ -283,10 +285,14 @@ def main():
 
             loss_dict = model(images, targets)
             batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
-            batch_loss.backward()
+            
+            # Normalize the loss by accumulation steps
+            (batch_loss / accum_steps).backward()
 
-            optimizer.step() # update model weights 
-            optimizer.zero_grad()
+            # UPDATE WEIGHTS every 'accum_steps' images
+            if (batch_idx + 1) % accum_steps == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
             epoch_loss += batch_loss.item()  # accumulate epoch loss
             running_avg_loss = epoch_loss / (batch_idx + 1)     # average so far
@@ -321,6 +327,7 @@ def main():
                 model.eval()  # switch back to eval mode
 
         avg_val_loss = val_loss / len(val_loader)
+        lr_scheduler.step(avg_val_loss)
         val_losses.append(avg_val_loss)
 
                 # -------- PLOTTING AFTER EACH EPOCH --------
