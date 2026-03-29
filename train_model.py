@@ -232,7 +232,7 @@ params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=0.0005, momentum=0.9, weight_decay=0.0001)
 
 # -------- NEW: LOAD CHECKPOINT --------
-checkpoint_path = "best_fasterrcnn_mushroom.pth"  # Ensure this matches your file name
+checkpoint_path = "checkpoint_epoch_10.pth"  # Ensure this matches your file name
 start_epoch = 1
 best_val_loss = float('inf')
 
@@ -353,20 +353,17 @@ def main():
         # lr_scheduler.step()
 
         # -------- SAVE CHECKPOINT --------
-        save_checkpoint(
-            epoch=epoch,
-            model=model,
-            optimizer=optimizer,
-            scheduler=lr_scheduler,
-            best_val_loss=best_val_loss,
-            filename=f"checkpoint_epoch_{epoch}.pth"
-        )
-
-        # Save best model separately
+         # Save best model separately as a FULL checkpoint
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            torch.save(model.state_dict(), "best_fasterrcnn_mushroom.pth")
-
+            save_checkpoint(
+                epoch=epoch,
+                model=model,
+                optimizer=optimizer,
+                scheduler=lr_scheduler,
+                best_val_loss=best_val_loss,
+                filename="best_fasterrcnn_mushroom_FULL.pth" # New name to be clear
+            )
 if __name__ == "__main__":
     main()
 
