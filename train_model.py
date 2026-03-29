@@ -258,8 +258,7 @@ def main():
     
     print("entering training")
     # num_epochs = 10
-    global start_epoch
-    best_val_loss = float('inf')
+    global start_epoch, best_val_loss = float('inf')
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
