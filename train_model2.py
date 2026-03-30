@@ -76,7 +76,7 @@ bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
 class MushroomCOCODataset(Dataset):
-    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(384, 384)):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(448,448)):
         self.images_dir = images_dir
         self.coco = COCO(annotations_file)
         self.augmentations = augmentations
