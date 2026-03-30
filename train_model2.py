@@ -182,7 +182,7 @@ train_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/annotations_coco.json",
     augmentations=augmentations,
-    resize=(384,384)
+    resize=(448,448)
 )
 
 train_loader = DataLoader(
@@ -198,7 +198,7 @@ val_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/annotations_coco.json",
     augmentations=None,
-    resize=(384,384)
+    resize=(448,448)
 )
 
 val_loader = DataLoader(
