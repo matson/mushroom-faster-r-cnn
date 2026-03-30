@@ -75,10 +75,8 @@ augmentations = A.Compose([
 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
-
-
 class MushroomCOCODataset(Dataset):
-    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(256, 256)):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(384, 384)):
         self.images_dir = images_dir
         self.coco = COCO(annotations_file)
         self.augmentations = augmentations
@@ -184,7 +182,7 @@ train_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/annotations_coco.json",
     augmentations=augmentations,
-    resize=(256,256)
+    resize=(384,384)
 )
 
 train_loader = DataLoader(
@@ -200,7 +198,7 @@ val_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/annotations_coco.json",
     augmentations=None,
-    resize=(256,256)
+    resize=(384,384)
 )
 
 val_loader = DataLoader(
@@ -248,7 +246,7 @@ if os.path.exists(checkpoint_path):
 # -------- NEW: DEFINE PLATEAU SCHEDULER --------
 # We define this AFTER loading so it starts fresh for the next 10 epochs
 lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.1, patience=2, verbose=True
+    optimizer, mode='min', factor=0.5, patience=5, verbose=True
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
@@ -262,12 +260,12 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 5):
+    for epoch in range(start_epoch, start_epoch + 20):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{10}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 19}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
@@ -431,4 +429,3 @@ verify()
 # # Evaluate
 # coco_dt = cocoGt.loadRes(predictions)
 # coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
-
