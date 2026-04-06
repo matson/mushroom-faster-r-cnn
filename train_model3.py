@@ -1,5 +1,4 @@
 
-
 # -------- INSTALLATION --------
 
 '''
@@ -246,7 +245,7 @@ if os.path.exists(checkpoint_path):
 
 # -------- COSINE ANNEALING SCHEDULER --------
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer, T_max=20, eta_min=1e-6
+    optimizer, T_max=10, eta_min=1e-6
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
@@ -366,66 +365,5 @@ if __name__ == "__main__":
     main()
 
   
-# -------- FINAL IMAGE VERIFICATION --------
-def verify(): 
-    model.eval()
-    with torch.no_grad():
-        # pick one validation image
-        img, target = val_dataset[0]
-        pred = model([img.to(device)])
 
-    # visualize
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
 
-    img_np = img.permute(1,2,0).numpy()
-    plt.imshow(img_np)
-    for box, score in zip(pred[0]['boxes'], pred[0]['scores']):
-        if score > 0.5:  # filter weak predictions
-            x1, y1, x2, y2 = box.cpu().numpy()
-            plt.gca().add_patch(
-                Rectangle((x1, y1), x2 - x1, y2 - y1,
-                        fill=False, color='red', linewidth=2)
-            )
-    plt.savefig("prediction_example.png")
-    plt.close()
-verify()
-
-# from pycocotools.coco import COCO
-# from pycocotools.cocoeval import COCOeval
-# import copy
-# import numpy as np
-# import torch
-
-# cocoGt = copy.deepcopy(val_dataset.coco)
-# predictions = []
-
-# for img_idx in range(len(val_dataset)):
-#     img, target = val_dataset[img_idx]
-    
-#     gt_boxes = target['boxes'].clone()  # already resized
-#     gt_labels = target['labels']
-#     gt_scores = torch.ones(len(gt_boxes))  # dummy perfect confidence
-    
-#     # Scale back to original image size
-#     img_info = cocoGt.loadImgs(int(target['image_id']))[0]
-#     w_orig, h_orig = img_info['width'], img_info['height']
-#     w_new, h_new = val_dataset.resize
-#     scale_x = w_orig / w_new
-#     scale_y = h_orig / h_new
-#     gt_boxes[:, [0, 2]] *= scale_x
-#     gt_boxes[:, [1, 3]] *= scale_y
-
-#     # Convert to COCO [x, y, w, h]
-#     for box, label, score in zip(gt_boxes, gt_labels, gt_scores):
-#         x1, y1, x2, y2 = box
-#         predictions.append({
-#             "image_id": int(target['image_id']),
-#             "category_id": int(label),
-#             "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
-#             "score": float(score)
-#         })
-
-# # Evaluate
-# coco_dt = cocoGt.loadRes(predictions)
-# coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
