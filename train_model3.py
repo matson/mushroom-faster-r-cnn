@@ -367,6 +367,79 @@ def main():
 if __name__ == "__main__":
     main()
 
+Epoch [28/37]:   0%|                                                                                                         | 0/3596 [00:00<?, ?it/s]  [Batch 0] after data→GPU       Alloc: 648.6 MB | Peak: 648.6 MB
+  [Batch 0] boxes in image: [82]
+  [Batch 0] after forward        Alloc: 1146.4 MB | Peak: 1601.9 MB
+  [Batch 0] losses: {'loss_classifier': '0.0665', 'loss_box_reg': '0.1510', 'loss_objectness': '0.0036', 'loss_rpn_box_reg': '0.0155'}
+  [Batch 0] after backward       Alloc: 809.6 MB | Peak: 1601.9 MB
+Epoch [28/37]:   0%|                                                                     | 0/3596 [00:02<?, ?it/s, avg_loss=0.2366, batch_loss=0.2366]  [Batch 0] after cleanup        Alloc: 806.0 MB | Peak: 1601.9 MB
+Epoch [28/37]:   0%|                                                           | 1/3596 [00:02<2:17:40,  2.30s/it, avg_loss=0.2366, batch_loss=0.2366]  [Batch 1] after data→GPU       Alloc: 809.6 MB | Peak: 1601.9 MB
+  [Batch 1] boxes in image: [180]
+  [Batch 1] after forward        Alloc: 1307.3 MB | Peak: 2321.6 MB
+  [Batch 1] losses: {'loss_classifier': '0.0716', 'loss_box_reg': '0.1620', 'loss_objectness': '0.0230', 'loss_rpn_box_reg': '0.0238'}
+  [Batch 1] after backward       Alloc: 809.6 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 1/3596 [00:03<2:17:40,  2.30s/it, avg_loss=0.2585, batch_loss=0.2804]  [Batch 1] after cleanup        Alloc: 806.0 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 2/3596 [00:03<1:38:35,  1.65s/it, avg_loss=0.2585, batch_loss=0.2804]  [Batch 2] after data→GPU       Alloc: 808.3 MB | Peak: 2321.6 MB
+  [Batch 2] boxes in image: [173]
+  [Batch 2] after forward        Alloc: 1295.8 MB | Peak: 2321.6 MB
+  [Batch 2] losses: {'loss_classifier': '0.0764', 'loss_box_reg': '0.1029', 'loss_objectness': '0.0214', 'loss_rpn_box_reg': '0.0162'}
+  [Batch 2] after backward       Alloc: 808.3 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 2/3596 [00:04<1:38:35,  1.65s/it, avg_loss=0.2447, batch_loss=0.2170]  [Batch 2] after cleanup        Alloc: 806.0 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 3/3596 [00:04<1:24:35,  1.41s/it, avg_loss=0.2447, batch_loss=0.2170]  [Batch 3] after data→GPU       Alloc: 808.3 MB | Peak: 2321.6 MB
+  [Batch 3] boxes in image: [176]
+  [Batch 3] after forward        Alloc: 1295.8 MB | Peak: 2321.6 MB
+  [Batch 3] losses: {'loss_classifier': '0.0330', 'loss_box_reg': '0.0818', 'loss_objectness': '0.0167', 'loss_rpn_box_reg': '0.0159'}
+  [Batch 3] after backward       Alloc: 808.3 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 3/3596 [00:05<1:24:35,  1.41s/it, avg_loss=0.2204, batch_loss=0.1475]  [Batch 3] after cleanup        Alloc: 806.0 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 4/3596 [00:05<1:18:01,  1.30s/it, avg_loss=0.2204, batch_loss=0.1475]  [Batch 4] after data→GPU       Alloc: 810.5 MB | Peak: 2321.6 MB
+  [Batch 4] boxes in image: [127]
+  [Batch 4] after forward        Alloc: 1307.4 MB | Peak: 2321.6 MB
+  [Batch 4] losses: {'loss_classifier': '0.0868', 'loss_box_reg': '0.1584', 'loss_objectness': '0.0142', 'loss_rpn_box_reg': '0.0209'}
+  [Batch 4] after backward       Alloc: 810.5 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 4/3596 [00:06<1:18:01,  1.30s/it, avg_loss=0.2324, batch_loss=0.2802]  [Batch 4] after cleanup        Alloc: 806.0 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 5/3596 [00:06<1:14:48,  1.25s/it, avg_loss=0.2324, batch_loss=0.2802]  [Batch 5] after data→GPU       Alloc: 810.5 MB | Peak: 2321.6 MB
+  [Batch 5] boxes in image: [159]
+  [Batch 5] after forward        Alloc: 1307.4 MB | Peak: 2321.6 MB
+  [Batch 5] losses: {'loss_classifier': '0.0717', 'loss_box_reg': '0.1303', 'loss_objectness': '0.0083', 'loss_rpn_box_reg': '0.0252'}
+  [Batch 5] after backward       Alloc: 810.5 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 5/3596 [00:07<1:14:48,  1.25s/it, avg_loss=0.2329, batch_loss=0.2355]  [Batch 5] after cleanup        Alloc: 806.0 MB | Peak: 2321.6 MB
+Epoch [28/37]:   0%|                                                           | 6/3596 [00:08<1:13:05,  1.22s/it, avg_loss=0.2329, batch_loss=0.2355]  [Batch 6] after data→GPU       Alloc: 810.2 MB | Peak: 2321.6 MB
+  [Batch 6] boxes in image: [207]
+  [Batch 6] after forward        Alloc: 1307.4 MB | Peak: 2477.1 MB
+  [Batch 6] losses: {'loss_classifier': '0.0627', 'loss_box_reg': '0.1579', 'loss_objectness': '0.0329', 'loss_rpn_box_reg': '0.0267'}
+  [Batch 6] after backward       Alloc: 810.2 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|                                                           | 6/3596 [00:09<1:13:05,  1.22s/it, avg_loss=0.2396, batch_loss=0.2801]  [Batch 6] after cleanup        Alloc: 806.0 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|                                                           | 7/3596 [00:09<1:12:39,  1.21s/it, avg_loss=0.2396, batch_loss=0.2801]  [Batch 7] after data→GPU       Alloc: 810.2 MB | Peak: 2477.1 MB
+  [Batch 7] boxes in image: [178]
+  [Batch 7] after forward        Alloc: 1307.4 MB | Peak: 2477.1 MB
+  [Batch 7] losses: {'loss_classifier': '0.0466', 'loss_box_reg': '0.1287', 'loss_objectness': '0.0126', 'loss_rpn_box_reg': '0.0309'}
+  [Batch 7] after backward       Alloc: 810.2 MB | Peak: 2477.1 MB
+  [Batch 7] after optimizer      Alloc: 810.2 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|                                                           | 7/3596 [00:10<1:12:39,  1.21s/it, avg_loss=0.2370, batch_loss=0.2189]  [Batch 7] after cleanup        Alloc: 806.0 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                          | 8/3596 [00:10<1:12:31,  1.21s/it, avg_loss=0.2370, batch_loss=0.2189]  [Batch 8] after data→GPU       Alloc: 808.3 MB | Peak: 2477.1 MB
+  [Batch 8] boxes in image: [162]
+  [Batch 8] after forward        Alloc: 1295.8 MB | Peak: 2477.1 MB
+  [Batch 8] losses: {'loss_classifier': '0.0573', 'loss_box_reg': '0.0946', 'loss_objectness': '0.0314', 'loss_rpn_box_reg': '0.0508'}
+  [Batch 8] after backward       Alloc: 808.3 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                          | 8/3596 [00:11<1:12:31,  1.21s/it, avg_loss=0.2367, batch_loss=0.2341]  [Batch 8] after cleanup        Alloc: 806.0 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                          | 9/3596 [00:11<1:10:49,  1.18s/it, avg_loss=0.2367, batch_loss=0.2341]  [Batch 9] after data→GPU       Alloc: 808.3 MB | Peak: 2477.1 MB
+  [Batch 9] boxes in image: [166]
+  [Batch 9] after forward        Alloc: 1295.8 MB | Peak: 2477.1 MB
+  [Batch 9] losses: {'loss_classifier': '0.0693', 'loss_box_reg': '0.1423', 'loss_objectness': '0.0598', 'loss_rpn_box_reg': '0.0882'}
+  [Batch 9] after backward       Alloc: 808.3 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                          | 9/3596 [00:12<1:10:49,  1.18s/it, avg_loss=0.2490, batch_loss=0.3596]  [Batch 9] after cleanup        Alloc: 806.0 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                         | 10/3596 [00:12<1:09:47,  1.17s/it, avg_loss=0.2490, batch_loss=0.3596]  [Batch 10] after data→GPU       Alloc: 809.5 MB | Peak: 2477.1 MB
+  [Batch 10] boxes in image: [170]
+  [Batch 10] after forward        Alloc: 1346.1 MB | Peak: 2477.1 MB
+  [Batch 10] losses: {'loss_classifier': '0.0784', 'loss_box_reg': '0.1522', 'loss_objectness': '0.0141', 'loss_rpn_box_reg': '0.0233'}
+  [Batch 10] after backward       Alloc: 809.5 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                         | 10/3596 [00:13<1:09:47,  1.17s/it, avg_loss=0.2507, batch_loss=0.2681]  [Batch 10] after cleanup        Alloc: 806.0 MB | Peak: 2477.1 MB
+Epoch [28/37]:   0%|▏                                                         | 11/3596 [00:13<1:11:19,  1.19s/it, avg_loss=0.2507, batch_loss=0.2681]  [Batch 11] after data→GPU       Alloc: 809.5 MB | Peak: 2477.1 MB
+  [Batch 11] boxes in image: [166]
+  [Batch 11] after forward        Alloc: 1346.1 MB | Peak: 2477.1 MB
+  [Batch 11] losses: {'loss_classifier': '0.0761', 'loss_box_reg': '0.1588', 'loss_objectness': '0.0259', 'loss_rpn_box_reg': '0.0198'}
+Epoch [28/37]:   0%|▏  
+
   
 
 
