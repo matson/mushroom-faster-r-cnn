@@ -76,7 +76,7 @@ bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
 class MushroomCOCODataset(Dataset):
-    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(448,448)):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(384, 384)):
         self.images_dir = images_dir
         self.coco = COCO(annotations_file)
         self.augmentations = augmentations
@@ -215,7 +215,11 @@ val_loader = DataLoader(
 
 # -------- LOAD MODEL (Faster R-CNN) --------
 weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=weights)
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
+    weights=weights,
+    rpn_post_nms_top_n_train=500,  # default 2000 — reduces forward pass memory spike
+    box_detections_per_img=220     # match max annotations per image
+)
 
 # Replace classifier head
 num_classes = 2  # 1 class (mushroom) + background
@@ -227,10 +231,10 @@ model.to(device)
 
 # Define optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.0005, momentum=0.9, weight_decay=0.0001)
+optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0001)
 
 # -------- NEW: LOAD CHECKPOINT --------
-checkpoint_path = "checkpoint_epoch_10.pth"  # Ensure this matches your file name
+checkpoint_path = "best_fasterrcnn_mushroom_FULL.pth"
 start_epoch = 1
 best_val_loss = float('inf')
 
@@ -243,16 +247,15 @@ if os.path.exists(checkpoint_path):
     best_val_loss = checkpoint.get('best_val_loss', float('inf'))
     print(f"Resuming from Epoch {start_epoch}")
 
-# -------- NEW: DEFINE PLATEAU SCHEDULER --------
-# We define this AFTER loading so it starts fresh for the next 10 epochs
-lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=0.5, patience=5, verbose=True
+# -------- COSINE ANNEALING SCHEDULER --------
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optimizer, T_max=10, eta_min=1e-6
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
 def main():
     
-    accum_steps = 4 
+    accum_steps = 8
     
     print("entering training")
     # num_epochs = 10
@@ -260,46 +263,49 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 20):
+    for epoch in range(start_epoch, start_epoch + 10):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 19}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 9}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
+            def mem(label):
+                torch.cuda.synchronize()
+                alloc = torch.cuda.memory_allocated() / 1024**2
+                peak  = torch.cuda.max_memory_allocated() / 1024**2
+                print(f"  [Batch {batch_idx}] {label:<20} Alloc: {alloc:.1f} MB | Peak: {peak:.1f} MB")
+
             images = [img.to(device) for img in images]
             targets = [{k:v.to(device) for k,v in t.items()} for t in targets]
+            mem("after data→GPU")
 
-            # -------- GPU MEMORY LOGGING --------
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()  # sync to get accurate memory usage
-                allocated = torch.cuda.memory_allocated() / 1024**2
-                reserved = torch.cuda.memory_reserved() / 1024**2
-                peak = torch.cuda.max_memory_allocated() / 1024**2
-                print(f"[Batch {batch_idx}] Allocated: {allocated:.1f} MB | Reserved: {reserved:.1f} MB | Peak: {peak:.1f} MB")
-                print(f"[Batch {batch_idx}] Objects in batch: {[len(t['boxes']) for t in targets]}")
+            print(f"  [Batch {batch_idx}] boxes in image: {[len(t['boxes']) for t in targets]}")
 
             loss_dict = model(images, targets)
-            batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
-            
-            # Normalize the loss by accumulation steps
-            (batch_loss / accum_steps).backward()
+            mem("after forward")
 
-            # UPDATE WEIGHTS every 'accum_steps' images
+            batch_loss = sum(loss for loss in loss_dict.values())
+            print(f"  [Batch {batch_idx}] losses: { {k: f'{v.item():.4f}' for k,v in loss_dict.items()} }")
+
+            (batch_loss / accum_steps).backward()
+            mem("after backward")
+
             if (batch_idx + 1) % accum_steps == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+                mem("after optimizer")
 
-            epoch_loss += batch_loss.item()  # accumulate epoch loss
-            running_avg_loss = epoch_loss / (batch_idx + 1)     # average so far
+            epoch_loss += batch_loss.item()
+            running_avg_loss = epoch_loss / (batch_idx + 1)
 
             loop.set_postfix(batch_loss=f"{batch_loss.item():.4f}", avg_loss=f"{running_avg_loss:.4f}")
 
-
             del images, targets, loss_dict, batch_loss
             torch.cuda.empty_cache()
+            mem("after cleanup")
 
         avg_train_loss = epoch_loss / len(train_loader)
         train_losses.append(avg_train_loss)
@@ -326,7 +332,7 @@ def main():
 
         avg_val_loss = val_loss / len(val_loader)
         
-        lr_scheduler.step(avg_val_loss)
+        lr_scheduler.step()
         
         val_losses.append(avg_val_loss)
 
@@ -365,67 +371,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-  
-# -------- FINAL IMAGE VERIFICATION --------
-def verify(): 
-    model.eval()
-    with torch.no_grad():
-        # pick one validation image
-        img, target = val_dataset[0]
-        pred = model([img.to(device)])
+ 
 
-    # visualize
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
-
-    img_np = img.permute(1,2,0).numpy()
-    plt.imshow(img_np)
-    for box, score in zip(pred[0]['boxes'], pred[0]['scores']):
-        if score > 0.5:  # filter weak predictions
-            x1, y1, x2, y2 = box.cpu().numpy()
-            plt.gca().add_patch(
-                Rectangle((x1, y1), x2 - x1, y2 - y1,
-                        fill=False, color='red', linewidth=2)
-            )
-    plt.savefig("prediction_example.png")
-    plt.close()
-verify()
-
-# from pycocotools.coco import COCO
-# from pycocotools.cocoeval import COCOeval
-# import copy
-# import numpy as np
-# import torch
-
-# cocoGt = copy.deepcopy(val_dataset.coco)
-# predictions = []
-
-# for img_idx in range(len(val_dataset)):
-#     img, target = val_dataset[img_idx]
-    
-#     gt_boxes = target['boxes'].clone()  # already resized
-#     gt_labels = target['labels']
-#     gt_scores = torch.ones(len(gt_boxes))  # dummy perfect confidence
-    
-#     # Scale back to original image size
-#     img_info = cocoGt.loadImgs(int(target['image_id']))[0]
-#     w_orig, h_orig = img_info['width'], img_info['height']
-#     w_new, h_new = val_dataset.resize
-#     scale_x = w_orig / w_new
-#     scale_y = h_orig / h_new
-#     gt_boxes[:, [0, 2]] *= scale_x
-#     gt_boxes[:, [1, 3]] *= scale_y
-
-#     # Convert to COCO [x, y, w, h]
-#     for box, label, score in zip(gt_boxes, gt_labels, gt_scores):
-#         x1, y1, x2, y2 = box
-#         predictions.append({
-#             "image_id": int(target['image_id']),
-#             "category_id": int(label),
-#             "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
-#             "score": float(score)
-#         })
-
-# # Evaluate
-# coco_dt = cocoGt.loadRes(predictions)
-# coco_eval = COCOeval(cocoGt, coco_dt, iouType='bbox')
