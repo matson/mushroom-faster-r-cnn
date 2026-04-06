@@ -268,37 +268,40 @@ def main():
         
         for batch_idx, (images, targets) in enumerate(loop):
 
+            def mem(label):
+                torch.cuda.synchronize()
+                alloc = torch.cuda.memory_allocated() / 1024**2
+                peak  = torch.cuda.max_memory_allocated() / 1024**2
+                print(f"  [Batch {batch_idx}] {label:<20} Alloc: {alloc:.1f} MB | Peak: {peak:.1f} MB")
+
             images = [img.to(device) for img in images]
             targets = [{k:v.to(device) for k,v in t.items()} for t in targets]
+            mem("after data→GPU")
 
-            # -------- GPU MEMORY LOGGING --------
-            if torch.cuda.is_available():
-                torch.cuda.synchronize()  # sync to get accurate memory usage
-                allocated = torch.cuda.memory_allocated() / 1024**2
-                reserved = torch.cuda.memory_reserved() / 1024**2
-                peak = torch.cuda.max_memory_allocated() / 1024**2
-                print(f"[Batch {batch_idx}] Allocated: {allocated:.1f} MB | Reserved: {reserved:.1f} MB | Peak: {peak:.1f} MB")
-                print(f"[Batch {batch_idx}] Objects in batch: {[len(t['boxes']) for t in targets]}")
+            print(f"  [Batch {batch_idx}] boxes in image: {[len(t['boxes']) for t in targets]}")
 
             loss_dict = model(images, targets)
-            batch_loss = sum(loss for loss in loss_dict.values())  # <-- this batch's loss
-            
-            # Normalize the loss by accumulation steps
-            (batch_loss / accum_steps).backward()
+            mem("after forward")
 
-            # UPDATE WEIGHTS every 'accum_steps' images
+            batch_loss = sum(loss for loss in loss_dict.values())
+            print(f"  [Batch {batch_idx}] losses: { {k: f'{v.item():.4f}' for k,v in loss_dict.items()} }")
+
+            (batch_loss / accum_steps).backward()
+            mem("after backward")
+
             if (batch_idx + 1) % accum_steps == 0:
                 optimizer.step()
                 optimizer.zero_grad()
+                mem("after optimizer")
 
-            epoch_loss += batch_loss.item()  # accumulate epoch loss
-            running_avg_loss = epoch_loss / (batch_idx + 1)     # average so far
+            epoch_loss += batch_loss.item()
+            running_avg_loss = epoch_loss / (batch_idx + 1)
 
             loop.set_postfix(batch_loss=f"{batch_loss.item():.4f}", avg_loss=f"{running_avg_loss:.4f}")
 
-
             del images, targets, loss_dict, batch_loss
             torch.cuda.empty_cache()
+            mem("after cleanup")
 
         avg_train_loss = epoch_loss / len(train_loader)
         train_losses.append(avg_train_loss)
