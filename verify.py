@@ -1,9 +1,9 @@
-
 import torch
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+import random
 from utils import load_checkpoint, MushroomCOCODataset
 
 
@@ -28,27 +28,31 @@ load_checkpoint("best_fasterrcnn_mushroom_FULL.pth", model, device=device)
 model.eval()
 
 # -------- INFERENCE --------
-img_index = 0  # change this to view different validation images
+indices = random.sample(range(len(val_dataset)), 5)
 
-with torch.no_grad():
-    img, target = val_dataset[img_index]
-    pred = model([img.to(device)])[0]
+fig, axes = plt.subplots(1, 5, figsize=(25, 6))
 
-img_np = img.permute(1, 2, 0).numpy()
-plt.figure(figsize=(10, 10))
-plt.imshow(img_np)
+for ax, img_index in zip(axes, indices):
+    with torch.no_grad():
+        img, target = val_dataset[img_index]
+        pred = model([img.to(device)])[0]
 
-for box, score in zip(pred['boxes'], pred['scores']):
-    if score > 0.5:
-        x1, y1, x2, y2 = box.cpu().numpy()
-        plt.gca().add_patch(Rectangle(
-            (x1, y1), x2 - x1, y2 - y1,
-            fill=False, color='red', linewidth=2
-        ))
-        plt.text(x1, y1 - 4, f"{score:.2f}", color='red', fontsize=6)
+    img_np = img.permute(1, 2, 0).numpy()
+    ax.imshow(img_np)
 
-plt.axis('off')
-plt.title(f"Val image index {img_index} — {len(pred['boxes'])} detections")
-plt.savefig("prediction_example.png", dpi=150, bbox_inches='tight')
+    for box, score in zip(pred['boxes'], pred['scores']):
+        if score > 0.5:
+            x1, y1, x2, y2 = box.cpu().numpy()
+            ax.add_patch(Rectangle(
+                (x1, y1), x2 - x1, y2 - y1,
+                fill=False, color='red', linewidth=2
+            ))
+            ax.text(x1, y1 - 4, f"{score:.2f}", color='red', fontsize=6)
+
+    ax.axis('off')
+    ax.set_title(f"idx {img_index} — {len(pred['boxes'])} dets", fontsize=8)
+
+plt.tight_layout()
+plt.savefig("prediction_examples.png", dpi=150, bbox_inches='tight')
 plt.close()
-print("Saved prediction_example.png")
+print("Saved prediction_examples.png")
