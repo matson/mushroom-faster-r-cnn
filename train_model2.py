@@ -76,7 +76,7 @@ bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
 # -------- CUSTOM DATASET CLASS --------
 class MushroomCOCODataset(Dataset):
-    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(384, 384)):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(512, 512)):
         self.images_dir = images_dir
         self.coco = COCO(annotations_file)
         self.augmentations = augmentations
@@ -182,7 +182,7 @@ train_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/train/annotations_coco.json",
     augmentations=augmentations,
-    resize=(448,448)
+    resize=(512,512)
 )
 
 train_loader = DataLoader(
@@ -198,7 +198,7 @@ val_dataset = MushroomCOCODataset(
     images_dir="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/rgb",
     annotations_file="/home/matson/M18K_dataset/M18KV2_extracted/M18KV2/valid/annotations_coco.json",
     augmentations=None,
-    resize=(448,448)
+    resize=(512,512)
 )
 
 val_loader = DataLoader(
@@ -231,25 +231,15 @@ model.to(device)
 
 # Define optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0001)
+optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0001)
 
-# -------- NEW: LOAD CHECKPOINT --------
-checkpoint_path = "best_fasterrcnn_mushroom_FULL.pth"
+# -------- TRAINING FROM SCRATCH (no checkpoint) --------
 start_epoch = 1
 best_val_loss = float('inf')
 
-if os.path.exists(checkpoint_path):
-    print(f"--- Loading Checkpoint: {checkpoint_path} ---")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    start_epoch = checkpoint['epoch'] + 1
-    best_val_loss = checkpoint.get('best_val_loss', float('inf'))
-    print(f"Resuming from Epoch {start_epoch}")
-
 # -------- COSINE ANNEALING SCHEDULER --------
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer, T_max=10, eta_min=1e-6
+    optimizer, T_max=20, eta_min=1e-6
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
@@ -263,12 +253,12 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 10):
+    for epoch in range(start_epoch, start_epoch + 20):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 9}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 19}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
@@ -345,7 +335,7 @@ def main():
         plt.title('Training & Validation Loss')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f"loss_curve_epoch_{epoch}.png")  # save each epoch's plot
+        plt.savefig("loss_curve.png")
         plt.close()
 
         print(f"\nEvaluating maP on validation set for epoch {epoch}...")
