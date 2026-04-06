@@ -3,10 +3,87 @@ from matplotlib.patches import Rectangle
 import os
 from PIL import Image
 import torch
+from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-import torch
 import numpy as np
+import albumentations as A
+
+
+class MushroomCOCODataset(Dataset):
+    def __init__(self, images_dir, annotations_file, augmentations=None, resize=(448, 448)):
+        self.images_dir = images_dir
+        self.coco = COCO(annotations_file)
+        self.augmentations = augmentations
+        self.resize = resize
+
+        self.img_ids = [
+            img_id for img_id in self.coco.imgs.keys()
+            if len(self.coco.getAnnIds(imgIds=img_id)) > 0
+        ]
+
+    def __len__(self):
+        return len(self.img_ids)
+
+    def __getitem__(self, idx):
+        img_id = self.img_ids[idx]
+        img_info = self.coco.loadImgs(img_id)[0]
+        img_path = os.path.join(self.images_dir, img_info['file_name'])
+        image = Image.open(img_path).convert("RGB")
+        w_original, h_original = image.size
+
+        ann_ids = self.coco.getAnnIds(imgIds=img_id)
+        anns = self.coco.loadAnns(ann_ids)
+
+        boxes = []
+        labels = []
+        for ann in anns:
+            if ann['category_id'] == 0:
+                continue
+            x, y, width, height = ann['bbox']
+            if width <= 1 or height <= 1:
+                continue
+            boxes.append([x, y, x + width, y + height])
+            labels.append(1)
+
+        if len(boxes) == 0:
+            raise ValueError(f"Image {img_id} has no valid mushrooms.")
+
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+
+        w_new, h_new = self.resize
+        scale_x = w_new / w_original
+        scale_y = h_new / h_original
+        image = image.resize((w_new, h_new), resample=Image.BILINEAR)
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+
+        if self.augmentations:
+            transformed = self.augmentations(
+                image=np.array(image),
+                bboxes=boxes.numpy().tolist(),
+                labels=labels.numpy().tolist()
+            )
+            image = transformed['image']
+            boxes = torch.as_tensor(transformed['bboxes'], dtype=torch.float32)
+            labels = torch.as_tensor([int(l) for l in transformed['labels']], dtype=torch.int64)
+
+        widths = boxes[:, 2] - boxes[:, 0]
+        heights = boxes[:, 3] - boxes[:, 1]
+        valid = (widths > 1) & (heights > 1)
+        boxes = boxes[valid]
+        labels = labels[valid]
+
+        image = torch.as_tensor(np.array(image), dtype=torch.float32).permute(2, 0, 1) / 255.0
+
+        target = {
+            "boxes": boxes,
+            "labels": labels,
+            "image_id": torch.tensor([img_id])
+        }
+
+        return image, target
 
 def visualize_samples(dataset, num_samples=3):
     """
@@ -190,71 +267,3 @@ def load_checkpoint(filename, model, optimizer=None, scheduler=None, device="cpu
     best_val_loss = checkpoint["best_val_loss"]
     print(f"Checkpoint loaded: {filename} (epoch {epoch})")
     return epoch, best_val_loss
-
-
-
-
-# if __name__ == "__main__":
-#     # Sanity check for mAP with resized dataset
-#     from pycocotools.coco import COCO
-#     from pycocotools.cocoeval import COCOeval
-#     import numpy as np
-
-#     """
-#     dataset: your MushroomCOCODataset
-#     predictions: list of model outputs for each image
-#                  each element = dict with keys: 'boxes', 'scores', 'labels'
-#     """
-#     import copy
-#     coco_gt = copy.deepcopy(val_dataset.coco)
-#     for ann in coco_gt.dataset['annotations']:
-#         ann['category_id'] = 1  # remap all to mushroom
-#     coco_gt.dataset['categories'] = [{"id": 1, "name": "mushroom"}]
-#     coco_gt.createIndex()
-
-#     scaled_predictions = []
-
-#     print("Running sanity check for mAP calculation...")
-
-#     for img, target in val_dataset:
-#         # Use GT boxes directly as perfect predictions
-#         boxes = target['boxes'].numpy().copy()    # GT boxes in 256x256 space
-#         labels = target['labels'].numpy()
-#         img_id = int(target['image_id'].item())
-#         img_info = coco_gt.loadImgs(img_id)[0]
-#         w_orig, h_orig = img_info['width'], img_info['height']
-
-#         # Dataset resize
-#         w_new, h_new = val_dataset.resize
-#         scale_x = w_orig / w_new
-#         scale_y = h_orig / h_new
-
-#         # Rescale GT boxes back to original image size
-#         boxes[:, [0, 2]] *= scale_x
-#         boxes[:, [1, 3]] *= scale_y
-
-#         # Convert to COCO format [x, y, width, height] with perfect score
-#         for box, label in zip(boxes, labels):
-#             x1, y1, x2, y2 = box
-#             scaled_predictions.append({
-#                 "image_id": img_id,
-#                 "category_id": int(label),
-#                 "bbox": [float(x1), float(y1), float(x2 - x1), float(y2 - y1)],
-#                 "score": 1.0
-#             })
-
-#     from collections import Counter
-#     counts = Counter(ann['image_id'] for ann in coco_gt.dataset['annotations'])
-#     max_dets = max(counts.values())
-#     print(f"Max annotations per image: {max_dets}, Avg: {sum(counts.values()) / len(counts):.1f}")
-
-#     print("\nLoading and preparing results...")
-#     coco_dt = coco_gt.loadRes(scaled_predictions)
-#     coco_eval = COCOeval(coco_gt, coco_dt, iouType='bbox')
-#     coco_eval.params.maxDets = [1, 10, max_dets]
-
-#     print("Running per image evaluation...")
-#     coco_eval.evaluate()
-#     coco_eval.accumulate()
-#     coco_eval.summarize()
-
