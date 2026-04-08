@@ -63,11 +63,11 @@ torch.backends.cuda.max_split_size_mb = 64  # reduce frag
 # -------- TRANSFORMS DEF --------
 augmentations = A.Compose([
     A.Affine(
-        scale=(0.8, 1.2),
-        rotate=(-45, 45),  # safer than full 360
-        translate_percent=(-0.15, 0.15),
+        scale=(0.9, 1.1),
+        rotate=(-20, 20),
+        translate_percent=(-0.1, 0.1),
         fit_output=True,
-        p=0.8
+        p=0.6
     ),
     A.HorizontalFlip(p=0.5),
     A.VerticalFlip(p=0.5)
@@ -231,15 +231,23 @@ model.to(device)
 
 # Define optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0001)
+optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0001)
 
-# -------- TRAINING FROM SCRATCH (no checkpoint) --------
+# -------- RESUME FROM CHECKPOINT --------
+checkpoint_path = "best_fasterrcnn_mushroom_FULL.pth"
 start_epoch = 1
 best_val_loss = float('inf')
 
+if os.path.exists(checkpoint_path):
+    print(f"--- Loading Checkpoint: {checkpoint_path} ---")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    best_val_loss = checkpoint.get('best_val_loss', float('inf'))
+    print(f"Resuming from best checkpoint (val loss: {best_val_loss:.4f})")
+
 # -------- COSINE ANNEALING SCHEDULER --------
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer, T_max=20, eta_min=1e-6
+    optimizer, T_max=15, eta_min=1e-6
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
@@ -253,12 +261,12 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 20):
+    for epoch in range(start_epoch, start_epoch + 15):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 19}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 14}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
