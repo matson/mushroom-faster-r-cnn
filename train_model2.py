@@ -246,8 +246,8 @@ if os.path.exists(checkpoint_path):
     print(f"Resuming from best checkpoint (val loss: {best_val_loss:.4f})")
 
 # -------- COSINE ANNEALING SCHEDULER --------
-lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer, T_max=15, eta_min=1e-6
+lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    optimizer, T_0=8, T_mult=1, eta_min=1e-6
 )
 
 # -------- TRAINING LOOP WITH BATCH SIZE 4 + OPTIONAL GRADIENT ACCUMULATION --------
@@ -261,12 +261,12 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 15):
+    for epoch in range(start_epoch, start_epoch + 16):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 14}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 15}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
@@ -343,7 +343,7 @@ def main():
         plt.title('Training & Validation Loss')
         plt.legend()
         plt.grid(True)
-        plt.savefig("loss_curve.png")
+        plt.savefig("loss_curve_run3.png")
         plt.close()
 
         print(f"\nEvaluating maP on validation set for epoch {epoch}...")
