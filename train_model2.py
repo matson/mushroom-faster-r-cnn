@@ -372,3 +372,4 @@ if __name__ == "__main__":
  
 python3 -c "import json; d=json.load(open('/home/matson/M18K_dataset/M18KV2_ex
   tracted/M18KV2/train/annotations_coco.json')); print(d['categories'])"
+[{'id': 0, 'name': 'Mushrooms', 'supercategory': 'none'}, {'id': 1, 'name': 'BB', 'supercategory': 'Mushrooms'}, {'id': 2, 'name': 'WB', 'supercategory': 'Mushrooms'}]
