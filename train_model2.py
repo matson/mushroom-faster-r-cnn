@@ -370,4 +370,5 @@ if __name__ == "__main__":
     main()
 
  
-
+python3 -c "import json; d=json.load(open('/home/matson/M18K_dataset/M18KV2_ex
+  tracted/M18KV2/train/annotations_coco.json')); print(d['categories'])"
