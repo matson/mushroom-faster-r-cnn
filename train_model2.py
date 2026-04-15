@@ -69,8 +69,7 @@ augmentations = A.Compose([
         fit_output=True,
         p=0.6
     ),
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5)
+    A.HorizontalFlip(p=0.5)
 ],
 bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
 
@@ -231,7 +230,7 @@ model.to(device)
 
 # Define optimizer
 params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0001)
+optimizer = torch.optim.AdamW(params, lr=0.0005, momentum=0.9, weight_decay=0.0001)
 
 # -------- RESUME FROM CHECKPOINT --------
 checkpoint_path = "best_fasterrcnn_mushroom_FULL.pth"
@@ -261,12 +260,12 @@ def main():
     train_losses, val_losses = [], []
     torch.cuda.reset_peak_memory_stats()
 
-    for epoch in range(start_epoch, start_epoch + 16):
+    for epoch in range(start_epoch, start_epoch + 15):
 
         model.train()
         epoch_loss = 0
         optimizer.zero_grad()
-        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 15}]")
+        loop = tqdm(train_loader, total=len(train_loader), desc=f"Epoch [{epoch}/{start_epoch + 14}]")
         
         for batch_idx, (images, targets) in enumerate(loop):
 
@@ -343,7 +342,7 @@ def main():
         plt.title('Training & Validation Loss')
         plt.legend()
         plt.grid(True)
-        plt.savefig("loss_curve_run3.png")
+        plt.savefig("loss_curve_run5.png")
         plt.close()
 
         print(f"\nEvaluating maP on validation set for epoch {epoch}...")
